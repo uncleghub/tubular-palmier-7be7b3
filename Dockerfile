@@ -9,7 +9,7 @@ COPY package*.json ./
 RUN --mount=type=secret,id=proxy_ca,mode=0444 if [ -f /run/secrets/proxy_ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/proxy_ca; fi; npm ci --no-audit --no-fund
 COPY . .
 ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
-ARG NEXT_PUBLIC_APP_NAME="Graham Unlocked AI Studio"
+ARG NEXT_PUBLIC_APP_NAME="GEEZ AI STUDIO"
 ARG NEXT_PUBLIC_TAGLINE="Create images. Generate videos. Unlock your ideas."
 ARG NEXT_PUBLIC_SUPPORT_EMAIL
 ARG NEXT_PUBLIC_ACCENT

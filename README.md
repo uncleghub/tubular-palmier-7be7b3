@@ -1,10 +1,10 @@
-# Graham Unlocked AI Studio
+# GEEZ AI STUDIO
 
 Create images. Generate videos. Unlock your ideas.
 
-A TypeScript / Next.js application with a responsive navy-and-orange studio, PostgreSQL wallet and durable queue, a separate worker, private media access, Clerk integration, and an optional Paddle **sandbox** adapter.
+A TypeScript / Next.js application with a responsive graphite-and-copper studio, PostgreSQL wallet and durable queue, a separate worker, private media access, Clerk integration, and an optional Paddle **sandbox** adapter.
 
-**Delivery status: working local demonstration, not a finished commercial launch.** No live AI model has been verified or enabled. Default checkout is a local signed-event simulation, not a gateway sandbox. No real money is collected. No deployment was performed. Read [launch blockers](docs/LAUNCH.md) before configuring external services.
+**Delivery status: deployed demonstration, not a finished commercial launch.** No live AI model has been verified or enabled. Default checkout is a local signed-event simulation, not a gateway sandbox. No real money is collected. The owner deployed the demo to [Render](https://tubular-palmier-7be7b3.onrender.com/) and tested sign-in plus sample image/video downloads. Workspace access to that public host is restricted, so independent end-to-end checks on the public deployment remain limited. Read [launch blockers](docs/LAUNCH.md) before configuring external services.
 
 The pre-existing `index.html` personal landing page is preserved unchanged. Next.js serves the new application from `app/`.
 
@@ -64,8 +64,14 @@ Backend tests create and drop an isolated PostgreSQL schema; the normal worker c
 - [Outstanding launch prerequisites](docs/LAUNCH.md)
 - [Observed verification results](docs/VALIDATION.md)
 
-No domain, hosting account, provider funds or live checkout was purchased or opened. Add actual secret values through your host's secret manager, never source control or chat.
+No custom domain, provider funds or live checkout was purchased. The owner configured a Render account and temporary demo hosting. Add actual secret values through your host's secret manager, never source control or chat.
 
 ## First-time Render demo
 
 See [the Render demo guide](docs/RENDER-DEMO.md) for the current Web Service form. The demonstration-only `npm run demo:host` command applies migrations and supervises both web and sample worker within one container, deriving the public origin from Render. It requires `APP_MODE=demo` and a configured PostgreSQL database. Production deployment continues to use separate web/worker processes. Free web hosting may sleep and lose local media; review actual database availability, expiry and prices before deploying.
+
+## Branding
+
+The default product identity is **GEEZ AI STUDIO**. Change `NEXT_PUBLIC_APP_NAME`, `NEXT_PUBLIC_TAGLINE`, `NEXT_PUBLIC_SUPPORT_EMAIL` and `NEXT_PUBLIC_ACCENT` in the host environment when needed, then rebuild because public values are embedded in the frontend. The Docker default build argument and example environment use the same identity. Existing branch, database, host and historical image names are retained so rebranding does not break working deployments or financial records.
+
+The GEEZ interface refresh, example artwork disclosure and visual checks are described in [DESIGN.md](docs/DESIGN.md).

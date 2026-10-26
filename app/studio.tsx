@@ -25,13 +25,12 @@ import {
   X,
   Shield,
   LogOut,
-  Layers,
-  Flame,
   Coins,
   Zap,
 } from "lucide-react";
 import { models } from "@/lib/catalog";
 import { packages } from "@/lib/config";
+import Discover from "./components/discover";
 type Job = {
   id: string;
   model_id: string;
@@ -64,37 +63,7 @@ type Account = {
   }[];
   demo: boolean;
 };
-const name = process.env.NEXT_PUBLIC_APP_NAME || "Graham Unlocked AI Studio";
-const examples = [
-  {
-    id: "dunes",
-    title: "Somewhere beyond the ordinary",
-    category: "Landscape",
-    prompt:
-      "Sculptural terracotta dunes under a luminous peach moon, cinematic light",
-  },
-  {
-    id: "bloom",
-    title: "Let imagination bloom",
-    category: "Abstract",
-    prompt:
-      "An iridescent botanical sculpture, emerald glass petals, studio lighting",
-  },
-  {
-    id: "arch",
-    title: "A different kind of escape",
-    category: "Architecture",
-    prompt:
-      "Minimalist sunlit archway overlooking a tranquil sea, soft warm textures",
-  },
-  {
-    id: "orbit",
-    title: "Out of this world",
-    category: "Concept art",
-    prompt:
-      "A luminous orbital sculpture suspended in deep space, orange and violet",
-  },
-];
+const name = process.env.NEXT_PUBLIC_APP_NAME || "GEEZ AI STUDIO";
 async function api(path: string, body?: unknown, method?: string) {
   const r = await fetch("/api/" + path, {
     method: method || (body ? "POST" : "GET"),
@@ -125,8 +94,7 @@ export default function Studio({
   const [account, setAccount] = useState<Account | null>(null),
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false),
-    [menu, setMenu] = useState(false),
-    [filter, setFilter] = useState("All inspiration");
+    [menu, setMenu] = useState(false);
   const kind = page === "video" ? "video" : "image";
   const [modelId, setModelId] = useState(
     kind === "image" ? "sample-image" : "sample-video",
@@ -169,6 +137,14 @@ export default function Studio({
     const t = setInterval(refresh, 2000);
     return () => clearInterval(t);
   }, [account, refresh]);
+  useEffect(() => {
+    if (!menu) return;
+    const handle = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenu(false);
+    };
+    window.addEventListener("keydown", handle);
+    return () => window.removeEventListener("keydown", handle);
+  }, [menu]);
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
     setNotice("");
@@ -247,17 +223,29 @@ export default function Studio({
       <a href="#main" className="skip">
         Skip to content
       </a>
+      {menu && (
+        <button
+          className="nav-overlay"
+          aria-label="Close navigation menu"
+          onClick={() => setMenu(false)}
+        />
+      )}
       <aside className={menu ? "sidebar open" : "sidebar"}>
-        <Link className="brand" href="/">
-          <span className="brand-icon">
-            <Layers size={24} />
+        <Link className="brand" href="/" aria-label={name}>
+          <span className="geez-mark" aria-hidden="true">
+            <svg viewBox="0 0 40 40" fill="none">
+              <path
+                d="M32 11L20 4 7 12v16l13 8 13-8V18H19v7h7v1l-6 4-7-4V15l7-4 6 4"
+                stroke="currentColor"
+                strokeWidth="3.6"
+                strokeLinejoin="round"
+              />
+              <circle cx="34" cy="6" r="3" fill="#fca16b" />
+            </svg>
           </span>
-          {name === "Graham Unlocked AI Studio" ? (
-            <span>
-              GRAHAM
-              <span className="brand-second">
-                UNLOCKED <i>AI STUDIO</i>
-              </span>
+          {name === "GEEZ AI STUDIO" ? (
+            <span className="geez-wordmark">
+              GEEZ<span>AI STUDIO</span>
             </span>
           ) : (
             <span className="custom-brand">{name}</span>
@@ -270,7 +258,7 @@ export default function Studio({
         >
           <X />
         </button>
-        <div className="nav-label">CREATE SOMETHING</div>
+        <div className="nav-label">CREATE & EXPLORE</div>
         <nav aria-label="Creation tools">{nav.map(navLink)}</nav>
         <div className="nav-label workspace-label">YOUR WORKSPACE</div>
         <nav aria-label="Your workspace">{work.map(navLink)}</nav>
@@ -293,8 +281,10 @@ export default function Studio({
             Settings
           </Link>
           <div className="sidebar-foot">
-            IMAGINATION, UNLOCKED.
-            <span>© {new Date().getFullYear()} Graham Unlocked</span>
+            AN OPEN SPACE FOR BIG IDEAS.
+            <span>
+              © {new Date().getFullYear()} {name}
+            </span>
           </div>
         </div>
       </aside>
@@ -308,6 +298,15 @@ export default function Studio({
             >
               <Menu />
             </button>
+            <Link href="/" className="mobile-top-brand" aria-label={name}>
+              {name === "GEEZ AI STUDIO" ? (
+                <>
+                  GEEZ<span>AI STUDIO</span>
+                </>
+              ) : (
+                name
+              )}
+            </Link>
             <span>Workspace</span>
             <span className="slash">/</span>
             <strong>
@@ -337,7 +336,7 @@ export default function Studio({
                 aria-label="Account settings"
                 onClick={() => router.push("/settings")}
               >
-                GU
+                GZ
               </button>
             ) : (
               <Link href="/sign-in" className="small-sign">
@@ -365,165 +364,7 @@ export default function Studio({
               </button>
             </div>
           )}
-          {page === "home" && (
-            <>
-              <section className="welcome">
-                <div>
-                  <div className="eyebrow">
-                    <span className="orange-dot" /> YOUR NEXT IDEA STARTS HERE
-                  </div>
-                  <h1>
-                    A little imagination.
-                    <br />
-                    Endless <em>possibilities.</em>
-                  </h1>
-                  <p>
-                    {process.env.NEXT_PUBLIC_TAGLINE ||
-                      "Create images. Generate videos. Unlock your ideas."}
-                  </p>
-                </div>
-                <div className="welcome-note">
-                  <span className="mini-orbit">
-                    <Sparkles size={48} />
-                  </span>
-                  <p>
-                    From a spark of an idea
-                    <br />
-                    to something worth sharing.
-                  </p>
-                </div>
-              </section>
-              <section className="create-grid" aria-label="Choose a studio">
-                <Link href="/image" className="create-card image-card">
-                  <img
-                    src="/examples/dunes.svg"
-                    alt="Illustrated orange dunes and a large glowing sun"
-                  />
-                  <div className="card-scrim" />
-                  <span className="card-tag">
-                    <ImageIcon size={14} /> IMAGE GENERATION
-                  </span>
-                  <div className="create-card-content">
-                    <span className="tool-icon">
-                      <ImageIcon size={22} />
-                    </span>
-                    <h2>Dream it. Create it.</h2>
-                    <p>Turn a few words into a whole new world.</p>
-                    <div className="create-card-action">
-                      Open image studio{" "}
-                      <span>
-                        <ArrowUpRight size={22} />
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-                <Link href="/video" className="create-card video-card">
-                  <img
-                    src="/examples/orbit.svg"
-                    alt="Illustrative luminous orange orbit in a dark violet atmosphere"
-                  />
-                  <div className="card-scrim" />
-                  <span className="card-tag">
-                    <Video size={14} /> VIDEO GENERATION
-                  </span>
-                  <span className="duration-tag">6s & 8s · demo</span>
-                  <div className="create-card-content">
-                    <span className="tool-icon">
-                      <Video size={22} />
-                    </span>
-                    <h2>Put ideas in motion.</h2>
-                    <p>Bring your story to life, one short clip at a time.</p>
-                    <div className="create-card-action">
-                      Open video studio{" "}
-                      <span>
-                        <ArrowUpRight size={22} />
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              </section>
-              <section className="inspiration">
-                <div className="section-heading">
-                  <div>
-                    <h2>
-                      A spark for your next creation <Sparkles size={19} />
-                    </h2>
-                    <p>
-                      A few possibilities. Where will your imagination take you?
-                    </p>
-                  </div>
-                  <span className="example-label">CURATED EXAMPLES</span>
-                </div>
-                <div className="filter-row">
-                  {[
-                    "All inspiration",
-                    "Landscape",
-                    "Abstract",
-                    "Architecture",
-                    "Concept art",
-                  ].map((f) => (
-                    <button
-                      key={f}
-                      onClick={() => setFilter(f)}
-                      className={filter === f ? "filter selected" : "filter"}
-                    >
-                      {f === "All inspiration" && <Flame size={14} />} {f}
-                    </button>
-                  ))}
-                  <span className="filter-note">
-                    Made to inspire. Clearly labeled.
-                  </span>
-                </div>
-                <div className="gallery">
-                  {examples
-                    .filter(
-                      (e) =>
-                        filter === "All inspiration" || e.category === filter,
-                    )
-                    .map((e) => (
-                      <Link
-                        href={"/image?prompt=" + encodeURIComponent(e.prompt)}
-                        className="example-card"
-                        key={e.id}
-                      >
-                        <div className="example-image">
-                          <img
-                            src={"/examples/" + e.id + ".svg"}
-                            alt={e.prompt}
-                          />
-                          <span>Illustration · example</span>
-                          <span className="example-arrow">
-                            <ArrowUpRight size={18} />
-                          </span>
-                        </div>
-                        <h3>{e.title}</h3>
-                        <p>
-                          {e.category}
-                          <span>
-                            Explore prompt <ArrowRight size={12} />
-                          </span>
-                        </p>
-                      </Link>
-                    ))}
-                </div>
-              </section>
-              <section className="bottom-banner">
-                <div className="banner-icon">
-                  <Zap size={23} />
-                </div>
-                <div>
-                  <h3>Big ideas. Simple credit packs.</h3>
-                  <p>
-                    One-time purchases from $5. No subscriptions. Create at your
-                    own pace.
-                  </p>
-                </div>
-                <Link href="/pricing">
-                  Find your pack <ArrowUpRight size={17} />
-                </Link>
-              </section>
-            </>
-          )}
+          {page === "home" && <Discover />}
           {(page === "image" || page === "video") && (
             <>
               {heading(
@@ -585,8 +426,12 @@ export default function Studio({
                     <button
                       onClick={() => {
                         setPrompt(
-                          examples[Math.floor(Math.random() * examples.length)]
-                            .prompt,
+                          [
+                            "A cinematic photograph of copper dunes at sunset, fine sand textures and warm atmospheric light",
+                            "An editorial portrait in soft natural light, ivory fabric and an emerald background",
+                            "A sculptural chrome ribbon, dark graphite studio and subtle teal reflections",
+                            "A sunlit limestone arch overlooking a turquoise Mediterranean sea",
+                          ][Math.floor(Math.random() * 4)],
                         );
                         change();
                       }}
@@ -1266,7 +1111,10 @@ export default function Studio({
               <Link href="/help">Help</Link>
             </div>
             <span className="footer-end">
-              Made for your imagination <span>↗</span>
+              Made for your imagination{" "}
+              <span>
+                <ArrowUpRight size={12} />
+              </span>
             </span>
           </footer>
         </main>
@@ -1398,7 +1246,7 @@ function Policy({ page }: { page: string }) {
       sections: [
         [
           "Service status",
-          "Graham Unlocked AI Studio currently operates as a demonstration. No live AI generation or paid checkout is available. These draft terms require operator and legal review before commercial launch.",
+          "GEEZ AI STUDIO currently operates as a demonstration. No live AI generation or paid checkout is available. These draft terms require operator and legal review before commercial launch.",
         ],
         [
           "Credit purchases",

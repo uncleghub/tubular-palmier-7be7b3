@@ -4,7 +4,7 @@ import { readFile, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { store } from "./storage";
-import { demo } from "./config";
+import { brand, demo } from "./config";
 const exec = promisify(execFile);
 export type ProviderResult = {
   key: string;
@@ -32,7 +32,18 @@ export const sampleAdapter: ProviderAdapter = {
           : j.input.ratio === "3:4"
             ? [768, 1024]
             : [1024, 576];
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 1024 1024"><defs><radialGradient id="g"><stop stop-color="#ea8351"/><stop offset="1" stop-color="#15293b"/></radialGradient></defs><rect width="1024" height="1024" fill="url(#g)"/><circle cx="515" cy="415" r="210" fill="#efbe91"/><path d="M0 800L280 450 540 800 790 560 1024 820V1024H0" fill="#203846"/><path d="M0 900L390 650 650 930 950 690 1024 840V1024H0" fill="#10202c"/><text x="50" y="970" fill="white" font-family="sans-serif" font-size="24">GRAHAM UNLOCKED · DEMO SAMPLE · NOT AI GENERATED</text></svg>`;
+      const label = brand.name.replace(
+        /[&<>"']/g,
+        (character) =>
+          ({
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&apos;",
+          })[character]!,
+      );
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 1024 1024"><defs><radialGradient id="g"><stop stop-color="#ea8351"/><stop offset="1" stop-color="#15293b"/></radialGradient></defs><rect width="1024" height="1024" fill="url(#g)"/><circle cx="515" cy="415" r="210" fill="#efbe91"/><path d="M0 800L280 450 540 800 790 560 1024 820V1024H0" fill="#203846"/><path d="M0 900L390 650 650 930 950 690 1024 840V1024H0" fill="#10202c"/><text x="50" y="970" fill="white" font-family="sans-serif" font-size="24">${label} · DEMO SAMPLE · NOT AI GENERATED</text></svg>`;
       const key = `outputs/${j.id}.svg`;
       await store(key, Buffer.from(svg), "image/svg+xml");
       return { key, width, height };

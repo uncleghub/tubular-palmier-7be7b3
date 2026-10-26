@@ -1,5 +1,5 @@
 export const brand = {
-  name: process.env.NEXT_PUBLIC_APP_NAME || "Graham Unlocked AI Studio",
+  name: process.env.NEXT_PUBLIC_APP_NAME || "GEEZ AI STUDIO",
   tagline:
     process.env.NEXT_PUBLIC_TAGLINE ||
     "Create images. Generate videos. Unlock your ideas.",

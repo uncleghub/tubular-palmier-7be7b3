@@ -39,3 +39,9 @@ Observed follow-up checks: typecheck and lint passed; **17/17** backend/configur
 ## Render certificate setup correction
 
 A Render deployment reported exit 100 in the HTTPS apt installation step. A direct check of the official slim base confirmed its system CA bundle was missing. Added an independent stage exporting the public roots bundled with official Node into the runtime before HTTPS apt operations. Local Docker rebuild passed, including package installation and the Next.js production build. Runtime checks confirmed the system CA bundle, FFmpeg and FFprobe are present for the non-root application user. Render's own deployment must still be retried and observed; local success does not establish that the hosted service is live.
+
+## GEEZ AI STUDIO visual refresh
+
+Rebranded customer-facing defaults, generated sample labels, metadata, social preview, downloads and application package identity. Added a cinematic hero, an original photographic-style example gallery, image/video prompt composer, gallery filters and refined mobile navigation and typography. Examples remain explicitly separate from demo results; live models and payments remain disabled.
+
+Observed final checks: **17/17 backend tests**, **8/8 browser tests** (desktop and 390px phone, 46.1 seconds), ESLint, TypeScript, production Next.js build and Docker image build all passed. Browser checks include Image/Video composer handoffs, keyboard Enter, gallery filters, mobile GEEZ wordmark, Escape/backdrop drawer close, five-route overflow, and the existing payment/wallet/generation/failure/download/security flows. `npm run smoke` passed on the supervised demo host. The Docker image's default-brand home and gallery asset each returned HTTP 200. Local screenshots were reviewed for desktop and phone home, studio and pricing layouts. Public Render deployment of this revision still requires observing its build/Live status; workspace egress does not independently verify that host.

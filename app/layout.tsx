@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { brand, demo } from "@/lib/config";
 import "./globals.css";
+import "./premium.css";
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.APP_URL || "http://localhost:3000"),
   title: { default: brand.name, template: `%s | ${brand.name}` },
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: brand.name,
     description: brand.tagline,
-    images: ["/social.svg"],
+    images: ["/social.png"],
   },
 };
 export default function Layout({ children }: { children: React.ReactNode }) {

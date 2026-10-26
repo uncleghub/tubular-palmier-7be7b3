@@ -149,7 +149,7 @@ async function handle(req: Request, context: Context) {
       return new Response(new Uint8Array(data.bytes!), {
         headers: {
           "Content-Type": key.endsWith(".mp4") ? "video/mp4" : "image/svg+xml",
-          "Content-Disposition": `attachment; filename="graham-${id}.${key.endsWith(".mp4") ? "mp4" : "svg"}"`,
+          "Content-Disposition": `attachment; filename="geez-${id}.${key.endsWith(".mp4") ? "mp4" : "svg"}"`,
           "Cache-Control": "private, no-store",
           "X-Content-Type-Options": "nosniff",
         },
