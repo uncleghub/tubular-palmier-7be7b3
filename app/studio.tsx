@@ -1,6 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SignIn, SignUp, SignOutButton } from "@clerk/nextjs";
@@ -30,12 +30,23 @@ import {
 } from "lucide-react";
 import { models } from "@/lib/catalog";
 import { packages } from "@/lib/config";
+import { freePreviewPlan } from "@/lib/free-plan";
 import Discover from "./components/discover";
+type FreePreviewState = {
+  enabled: boolean;
+  images: { remaining: number; reserved: number; used: number; total: number };
+  videos: { remaining: number; reserved: number; used: number; total: number };
+  imageModelId: string | null;
+  videoModelId: string | null;
+  videoSeconds: number;
+};
+type FundingSource = "wallet" | "free_preview";
 type Job = {
   id: string;
   model_id: string;
   input: { prompt: string; ratio: string };
   credits: number;
+  funding_source?: FundingSource;
   state: string;
   error?: string;
   width?: number;
@@ -53,6 +64,7 @@ type Purchase = {
 };
 type Account = {
   wallet: { balance: number; reserved: number };
+  freePreview?: FreePreviewState;
   jobs: Job[];
   purchases: Purchase[];
   ledger: {
@@ -84,11 +96,14 @@ export default function Studio({
   page,
   isDemo = true,
   initialPrompt = "",
+  initialFreePreview = false,
 }: {
   page: string;
   isDemo?: boolean;
   initialPrompt?: string;
+  initialFreePreview?: boolean;
 }) {
+  const settingsVersion = useRef(0);
   const demo = isDemo;
   const router = useRouter();
   const [account, setAccount] = useState<Account | null>(null),
@@ -106,7 +121,14 @@ export default function Studio({
     [duration, setDuration] = useState(6),
     [referenceId, setReferenceId] = useState<string>(),
     [referenceName, setReferenceName] = useState(""),
-    [quote, setQuote] = useState<{ id: string; credits: number } | null>(null),
+    [fundingChoice, setFundingChoice] = useState<"auto" | FundingSource>(
+      initialFreePreview ? "free_preview" : "auto",
+    ),
+    [quote, setQuote] = useState<{
+      id: string;
+      credits: number;
+      fundingSource?: FundingSource;
+    } | null>(null),
     [requestId, setRequestId] = useState(""),
     [purchase, setPurchase] = useState<{
       id: string;
@@ -168,7 +190,39 @@ export default function Studio({
         "Demo workspace ready. Your 1,000 test credits have no cash value.",
       );
     });
+  const allowance = account?.freePreview;
+  const remaining =
+    kind === "image"
+      ? allowance?.images.remaining || 0
+      : allowance?.videos.remaining || 0;
+  const freeModelId =
+    kind === "image" ? allowance?.imageModelId : allowance?.videoModelId;
+  const freeSettingsMatch =
+    !!freeModelId &&
+    modelId === freeModelId &&
+    (kind === "image" ||
+      duration === (allowance?.videoSeconds || freePreviewPlan.videoSeconds));
+  const freeEligible =
+    !!allowance?.enabled && remaining > 0 && freeSettingsMatch;
+  const effectiveFunding: FundingSource =
+    fundingChoice === "auto"
+      ? freeEligible
+        ? "free_preview"
+        : "wallet"
+      : fundingChoice;
+  const quoteFunding = quote?.fundingSource || effectiveFunding;
+  const freeProblem = !allowance?.enabled
+    ? "Free Preview is not available right now."
+    : modelId !== freeModelId
+      ? "This model is not included in Free Preview."
+      : kind === "video" && duration !== allowance.videoSeconds
+        ? `Free Preview includes one ${allowance.videoSeconds}-second video. Choose that duration or select Use credits.`
+        : remaining < 1
+          ? `Your free ${kind} allowance is used or reserved for another job. Select Use credits to continue.`
+          : "";
+  const fundingBlocked = effectiveFunding === "free_preview" && !freeEligible;
   const input = () => ({
+    fundingSource: quote?.fundingSource || effectiveFunding,
     modelId,
     prompt,
     ratio,
@@ -178,6 +232,7 @@ export default function Studio({
     requestId,
   });
   function change() {
+    settingsVersion.current += 1;
     setQuote(null);
   }
   const current =
@@ -405,6 +460,73 @@ export default function Studio({
                     <ChevronDown size={16} />
                   </div>
                   <p className="field-hint">{model.description}</p>
+                  {account && (
+                    <fieldset className="funding-selector">
+                      <legend>Choose how to generate</legend>
+                      <label
+                        className={
+                          effectiveFunding === "free_preview"
+                            ? "funding-option selected"
+                            : "funding-option"
+                        }
+                      >
+                        <input
+                          type="radio"
+                          name="generation-funding"
+                          aria-label="Use Free Preview"
+                          checked={effectiveFunding === "free_preview"}
+                          onChange={() => {
+                            setFundingChoice("free_preview");
+                            change();
+                          }}
+                        />
+                        <span>
+                          <strong>Use Free Preview</strong>
+                          <small>
+                            {allowance?.enabled
+                              ? `${remaining} ${kind}${remaining === 1 ? "" : "s"} available${kind === "video" ? ` · ${allowance.videoSeconds}s` : ""}`
+                              : "Unavailable right now"}
+                          </small>
+                        </span>
+                        <span className="funding-price">$0</span>
+                      </label>
+                      <label
+                        className={
+                          effectiveFunding === "wallet"
+                            ? "funding-option selected"
+                            : "funding-option"
+                        }
+                      >
+                        <input
+                          type="radio"
+                          name="generation-funding"
+                          aria-label="Use credits"
+                          checked={effectiveFunding === "wallet"}
+                          onChange={() => {
+                            setFundingChoice("wallet");
+                            change();
+                          }}
+                        />
+                        <span>
+                          <strong>Use credits</strong>
+                          <small>Pay from your studio wallet</small>
+                        </span>
+                        <span className="funding-price">
+                          {model.credits} credits
+                        </span>
+                      </label>
+                      <p className="funding-help">
+                        {demo
+                          ? "Free Preview uses demo samples. Your 1,000 test credits are separate."
+                          : "Free Preview is a one-time allowance per verified account."}
+                      </p>
+                      {fundingBlocked && (
+                        <p className="funding-warning" role="status">
+                          {freeProblem}
+                        </p>
+                      )}
+                    </fieldset>
+                  )}
                   <label htmlFor="prompt">
                     Your prompt <span>Be as imaginative as you like</span>
                   </label>
@@ -529,7 +651,14 @@ export default function Studio({
                       <Coins size={16} />{" "}
                       {quote ? "Your locked quote" : "Estimated cost"}
                     </span>
-                    <strong>{quote?.credits || model.credits} credits</strong>
+                    <strong>
+                      {quoteFunding === "free_preview" ? "Free Preview · " : ""}
+                      {quote?.credits ??
+                        (effectiveFunding === "free_preview"
+                          ? 0
+                          : model.credits)}{" "}
+                      credits
+                    </strong>
                   </div>
                   {!account ? (
                     <button
@@ -543,17 +672,21 @@ export default function Studio({
                   ) : (
                     <button
                       className="primary full"
-                      disabled={busy || prompt.trim().length < 3}
+                      disabled={
+                        busy || prompt.trim().length < 3 || fundingBlocked
+                      }
                       onClick={() =>
                         run(async () => {
                           if (!quote) {
                             const id = crypto.randomUUID();
                             setRequestId(id);
+                            const quotedVersion = settingsVersion.current;
                             const q = await api("quote", {
                               ...input(),
                               requestId: id,
                             });
-                            setQuote(q);
+                            if (quotedVersion === settingsVersion.current)
+                              setQuote(q);
                           } else {
                             const j = await api("jobs", {
                               ...input(),
@@ -578,9 +711,13 @@ export default function Studio({
                     </button>
                   )}
                   <p className="fine-print">
-                    {quote
-                      ? "Quote expires in 5 minutes. Confirm to reserve credits."
-                      : "Credits are reserved on confirmation and returned on confirmed failure."}
+                    {quoteFunding === "free_preview"
+                      ? quote
+                        ? "Quote expires in 5 minutes. Confirm to reserve one free generation."
+                        : "No wallet credits are charged. Confirmed failures restore your free allowance."
+                      : quote
+                        ? "Quote expires in 5 minutes. Confirm to reserve credits."
+                        : "Credits are reserved on confirmation and returned on confirmed failure."}
                   </p>
                 </section>
                 <section className="panel preview">
@@ -629,7 +766,9 @@ export default function Studio({
                           {current.width &&
                             `${current.width} × ${current.height}`}
                           {current.duration && ` · ${current.duration}s`} ·{" "}
-                          {current.credits} credits
+                          {current.funding_source === "free_preview"
+                            ? "Free Preview"
+                            : `${current.credits} credits`}
                         </div>
                         {current.state === "succeeded" && (
                           <a
@@ -683,6 +822,63 @@ export default function Studio({
                   These packages add demo credits with no cash value.
                 </p>
               </div>
+              <section className="panel free-preview-card" id="free-preview">
+                <div className="free-preview-intro">
+                  <span className="tag">START WITH FREE PREVIEW</span>
+                  <h2>A little room to try your ideas.</h2>
+                  <p>
+                    {freePreviewPlan.images} images and {freePreviewPlan.videos}{" "}
+                    {freePreviewPlan.videoSeconds}-second video, once per
+                    verified account. No card or credit purchase needed.
+                  </p>
+                  <ul>
+                    <li>
+                      <Check size={16} /> Separate from purchased credits
+                    </li>
+                    <li>
+                      <Check size={16} /> No subscription or daily reset
+                    </li>
+                    <li>
+                      <Check size={16} /> Confirmed failures restore the
+                      allowance
+                    </li>
+                  </ul>
+                  <p className="free-preview-disclosure">
+                    {demo
+                      ? "Available now as a demo with sample media. Live AI generation is not connected."
+                      : "Free model availability depends on the launch configuration. Verified sign-in is required."}
+                  </p>
+                </div>
+                <div className="free-preview-action">
+                  <div className="free-preview-price">
+                    $0<span>one-time preview</span>
+                  </div>
+                  {account && !account.freePreview?.enabled ? (
+                    <button className="secondary" disabled>
+                      Free Preview unavailable
+                    </button>
+                  ) : (
+                    <Link
+                      className="primary"
+                      href={
+                        account
+                          ? "/image?free=1"
+                          : demo
+                            ? "/sign-in"
+                            : "/sign-up"
+                      }
+                    >
+                      Try Free Preview <ArrowUpRight size={17} />
+                    </Link>
+                  )}
+                  {account?.freePreview?.enabled && (
+                    <span>
+                      {account.freePreview.images.remaining} images ·{" "}
+                      {account.freePreview.videos.remaining} video remaining
+                    </span>
+                  )}
+                </div>
+              </section>
               <div className="pricing-grid">
                 {packages.map((p, i) => (
                   <section
@@ -795,6 +991,12 @@ export default function Studio({
                 </section>
               ) : (
                 <>
+                  {page === "dashboard" && account.freePreview && (
+                    <FreePreviewAllowance
+                      allowance={account.freePreview}
+                      demo={demo}
+                    />
+                  )}
                   {page === "dashboard" && (
                     <div className="stats-grid">
                       {[
@@ -861,7 +1063,10 @@ export default function Studio({
                                   {j.input.prompt || "Deleted prompt"}
                                 </strong>
                                 <p>
-                                  {j.state} · {j.credits} credits{" "}
+                                  {j.state} ·{" "}
+                                  {j.funding_source === "free_preview"
+                                    ? "Free Preview"
+                                    : `${j.credits} credits`}{" "}
                                   {j.width && `· ${j.width} × ${j.height}`}{" "}
                                   {j.duration && `· ${j.duration}s`}
                                 </p>
@@ -985,6 +1190,13 @@ export default function Studio({
                       Start a private demo session with 1,000 test credits. No
                       email, card or real payment required. Demo access is
                       stored in this browser for seven days.
+                    </p>
+                    <p className="free-signin-note">
+                      Your separate Free Preview includes{" "}
+                      {freePreviewPlan.images} sample images and{" "}
+                      {freePreviewPlan.videos} {freePreviewPlan.videoSeconds}
+                      -second sample video. Live accounts will require verified
+                      sign-in.
                     </p>
                     <button
                       className="primary full"
@@ -1213,6 +1425,59 @@ export default function Studio({
     </div>
   );
 }
+function FreePreviewAllowance({
+  allowance,
+  demo,
+}: {
+  allowance: FreePreviewState;
+  demo: boolean;
+}) {
+  return (
+    <section
+      className="panel free-allowance-panel"
+      aria-label="Your Free Preview allowance"
+    >
+      <div>
+        <span className="studio-kicker">YOUR ONE-TIME FREE PREVIEW</span>
+        <h2>Try your ideas before buying credits.</h2>
+        <p>
+          {demo
+            ? "Demo samples only. Your test-credit wallet is separate."
+            : "Included once per verified account. No daily reset."}
+        </p>
+      </div>
+      <div className="free-allowance-counts">
+        <div>
+          <strong>
+            {allowance.images.remaining}
+            <small> / {allowance.images.total}</small>
+          </strong>
+          <span>images available</span>
+          {allowance.images.reserved > 0 && (
+            <small>{allowance.images.reserved} in progress</small>
+          )}
+        </div>
+        <div>
+          <strong>
+            {allowance.videos.remaining}
+            <small> / {allowance.videos.total}</small>
+          </strong>
+          <span>{allowance.videoSeconds}-second video available</span>
+          {allowance.videos.reserved > 0 && (
+            <small>{allowance.videos.reserved} in progress</small>
+          )}
+        </div>
+      </div>
+      {allowance.enabled ? (
+        <Link className="secondary" href="/image?free=1">
+          Use Free Preview <ArrowUpRight size={16} />
+        </Link>
+      ) : (
+        <p className="field-hint">Free Preview is currently unavailable.</p>
+      )}
+    </section>
+  );
+}
 function Policy({ page }: { page: string }) {
   const content: Record<
     string,
@@ -1231,7 +1496,7 @@ function Policy({ page }: { page: string }) {
         ],
         [
           "Credits and failures",
-          "Demo images cost 12 credits and demo videos cost 80 credits. Confirmed failures return reserved credits. An uncertain result keeps credits reserved until investigated, preventing repeat provider charges.",
+          "A one-time Free Preview is separate from the wallet. Select Use credits to pay with your wallet; demo images cost 12 credits and demo videos cost 80 credits. Confirmed failures return reserved credits. An uncertain result keeps credits reserved until investigated, preventing repeat provider charges.",
         ],
         [
           "Need support?",
@@ -1257,6 +1522,10 @@ function Policy({ page }: { page: string }) {
           "Quotes show the charge before confirmation. Credits are reserved, settled once on success, or released on confirmed failure. Output quality, permitted uses and commercial rights depend on the specific model provider and its terms; no universal rights guarantee is made.",
         ],
         [
+          "Free Preview",
+          `Free Preview provides ${freePreviewPlan.images} images and ${freePreviewPlan.videos} ${freePreviewPlan.videoSeconds}-second video once per verified account, on eligible configured models. It is separate from purchased credits, has no cash value and does not reset daily. A confirmed failure restores the reserved free allowance; an uncertain outcome remains reserved until reconciled. Current demo use produces samples only.`,
+        ],
+        [
           "Your responsibilities",
           "Only upload material you are entitled to process. Follow the acceptable-use policy. Do not submit secrets or sensitive personal data. You retain responsibility for using and reviewing output.",
         ],
@@ -1279,7 +1548,7 @@ function Policy({ page }: { page: string }) {
         ],
         [
           "Retention and deletion",
-          "Media access defaults to 30 days; an operator cleanup task removes expired objects. Purchased credits do not expire. Account deletion removes prompts and media; financial records are retained for reconciliation and applicable legal obligations. A legally reviewed financial retention schedule is still required before launch.",
+          "Media access defaults to 30 days; an operator cleanup task removes expired objects. Purchased credits do not expire. Account deletion removes prompts and media; wallet, purchase and free-allowance audit records are retained for reconciliation, one-time-offer enforcement and applicable legal obligations. A legally reviewed financial retention schedule is still required before launch.",
         ],
         [
           "Your choices",

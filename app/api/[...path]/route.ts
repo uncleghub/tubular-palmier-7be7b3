@@ -6,6 +6,7 @@ import { fileTypeFromBuffer } from "file-type";
 import { z } from "zod";
 import { userId, demoSignIn, sameOrigin, rateLimit, adminId } from "@/lib/auth";
 import { pool, transaction } from "@/lib/db";
+import { getFreePreview } from "@/lib/free-preview";
 import { packages, demo } from "@/lib/config";
 import { inputSchema, models } from "@/lib/catalog";
 import { quote, reserveJob, finishJob } from "@/lib/wallet";
@@ -81,7 +82,7 @@ async function handle(req: Request, context: Context) {
       );
       if (!w.rowCount) throw new Error("Sign in to continue.");
       const jobs = await pool.query(
-        "SELECT id,model_id,input,credits,state,error,width,height,duration,created_at FROM jobs WHERE user_id=$1 ORDER BY created_at DESC LIMIT 100",
+        "SELECT id,model_id,input,credits,state,error,width,height,duration,created_at,funding_source FROM jobs WHERE user_id=$1 ORDER BY created_at DESC LIMIT 100",
         [user],
       );
       const purchases = await pool.query(
@@ -97,6 +98,7 @@ async function handle(req: Request, context: Context) {
         jobs: jobs.rows,
         purchases: purchases.rows,
         ledger: ledger.rows,
+        freePreview: await getFreePreview(user),
         demo,
       });
     }
@@ -238,10 +240,18 @@ async function handle(req: Request, context: Context) {
     }
     if (route === "admin" && req.method === "GET") {
       await adminId();
+      const tables = [
+        "users",
+        "purchases",
+        "ledger",
+        "jobs",
+        "free_preview_allowances",
+        "free_preview_events",
+        "audit",
+        "settings",
+      ];
       const results = await Promise.all(
-        ["users", "purchases", "ledger", "jobs", "audit", "settings"].map((t) =>
-          pool.query(`SELECT * FROM ${t} LIMIT 200`),
-        ),
+        tables.map((t) => pool.query(`SELECT * FROM ${t} LIMIT 200`)),
       );
       const summary = await pool.query(`SELECT
         (SELECT count(*)::int FROM users WHERE deleted_at IS NULL) AS customers,
@@ -251,11 +261,7 @@ async function handle(req: Request, context: Context) {
         (SELECT count(*)::int FROM jobs WHERE state='failed') AS failures,
         (SELECT count(*)::int FROM jobs WHERE state='uncertain') AS uncertain`);
       return reply({
-        ...Object.fromEntries(
-          ["users", "purchases", "ledger", "jobs", "audit", "settings"].map(
-            (t, i) => [t, results[i].rows],
-          ),
-        ),
+        ...Object.fromEntries(tables.map((t, i) => [t, results[i].rows])),
         summary: summary.rows,
         models,
       });
@@ -350,7 +356,7 @@ async function handle(req: Request, context: Context) {
       return reply({ error: "Check your inputs and try again." }, 400);
     const message = e instanceof Error ? e.message : "Unexpected error";
     const allowed =
-      /^(Sign in|This model|These settings|Reference image|Your quote|Insufficient|Daily generation|Generation is|Too many|Request could|Administrator|Upload|Media not|Purchases are|Choose a valid|Test checkout|Purchase not|Wait for|Adjustment would|Confirm external|Demo is|Unknown model)/;
+      /^(Free Preview|Sign in|This model|These settings|Reference image|Your quote|Insufficient|Daily generation|Generation is|Too many|Request could|Administrator|Upload|Media not|Purchases are|Choose a valid|Test checkout|Purchase not|Wait for|Adjustment would|Confirm external|Demo is|Unknown model)/;
     return reply(
       {
         error: allowed.test(message)

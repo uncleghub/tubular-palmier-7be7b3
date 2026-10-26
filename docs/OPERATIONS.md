@@ -43,3 +43,7 @@ Run `npm run cleanup` daily. It deletes expired output objects and unused expire
 ## Data and recovery
 
 Use PostgreSQL backups and test restore. Local setup stores data in a Docker volume/container; do not assume a process, container or volume survives a new cloud machine. Saved installation recreates an empty local development database if absent. Never use the local example password for a public database. Protect private media, encryption keys and signed download URLs. Do not enable public sharing without explicit customer consent.
+
+## Free Preview operations
+
+See `FREE-PREVIEW.md`. Free allowances and events are separate from the wallet ledger; free jobs have zero actual credit debit and retain list-price credits for conservative caps. Upgrade every worker before enabling the live flag, apply all migrations, and preserve existing one-time grants across deploys. Inspect `free_preview_allowances` / `free_preview_events` in the admin view for reserved/used units. Do not manually reset an uncertain unit before confirming the provider outcome.

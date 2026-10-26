@@ -45,7 +45,7 @@ export default async function Page({
   searchParams,
 }: {
   params: Promise<{ page: string }>;
-  searchParams: Promise<{ prompt?: string }>;
+  searchParams: Promise<{ prompt?: string; free?: string }>;
 }) {
   const { page } = await params;
   const search = await searchParams;
@@ -56,6 +56,7 @@ export default async function Page({
       page={page}
       isDemo={demo}
       initialPrompt={(search.prompt || "").slice(0, 2000)}
+      initialFreePreview={search.free === "1"}
     />
   );
 }

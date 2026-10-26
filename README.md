@@ -75,3 +75,7 @@ See [the Render demo guide](docs/RENDER-DEMO.md) for the current Web Service for
 The default product identity is **GEEZ AI STUDIO**. Change `NEXT_PUBLIC_APP_NAME`, `NEXT_PUBLIC_TAGLINE`, `NEXT_PUBLIC_SUPPORT_EMAIL` and `NEXT_PUBLIC_ACCENT` in the host environment when needed, then rebuild because public values are embedded in the frontend. The Docker default build argument and example environment use the same identity. Existing branch, database, host and historical image names are retained so rebranding does not break working deployments or financial records.
 
 The GEEZ interface refresh, example artwork disclosure and visual checks are described in [DESIGN.md](docs/DESIGN.md).
+
+## Free Preview
+
+A one-time **3 images + 1 six-second video** allowance is now separate from purchased credits. Eligible studio settings default to Free Preview; **Use credits** explicitly selects wallet charging. Current use is sample-only. See [FREE-PREVIEW.md](docs/FREE-PREVIEW.md) for accounting, caps and the verified-account/model prerequisites before live activation.

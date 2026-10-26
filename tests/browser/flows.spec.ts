@@ -31,6 +31,7 @@ test("account, purchase, image, video, failure release and private downloads", a
     "Demo credits added once",
   );
   await page.goto("/image");
+  await page.getByRole("radio", { name: "Use credits", exact: true }).check();
   await page
     .getByLabel("Your prompt")
     .fill("A tranquil landscape under a golden moon");
@@ -60,6 +61,7 @@ test("account, purchase, image, video, failure release and private downloads", a
     fullPage: true,
   });
   await page.goto("/video");
+  await page.getByRole("radio", { name: "Use credits", exact: true }).check();
   await page.getByLabel("Your prompt").fill("A cinematic slow motion world");
   const clipSeconds = info.project.name === "mobile" ? "6" : "8";
   await page.getByLabel("Duration").selectOption(clipSeconds);
@@ -76,6 +78,7 @@ test("account, purchase, image, video, failure release and private downloads", a
     (await context.request.get(videoHref!)).headers()["content-type"],
   ).toBe("video/mp4");
   await page.goto("/image");
+  await page.getByRole("radio", { name: "Use credits", exact: true }).check();
   await page.getByLabel("Your prompt").fill("[simulate failure]");
   await page.getByRole("button", { name: "Get exact credit quote" }).click();
   await page.getByRole("button", { name: "Confirm & create sample" }).click();
@@ -296,4 +299,156 @@ test("home composer mode, prompt handoff and inspiration filters", async ({
   await expect(all).toHaveAttribute("aria-pressed", "true");
   await expect(portrait).toHaveAttribute("aria-pressed", "false");
   await expect(cards).toHaveCount(originalCount);
+});
+
+test("one-time Free Preview generates without spending wallet credits", async ({
+  page,
+  context,
+}, info) => {
+  await page.goto("/sign-in");
+  await page.getByRole("button", { name: "Enter demo workspace" }).click();
+  await expect(page.getByRole("status")).toContainText("ready");
+  await page.goto("/pricing");
+  const freeCard = page.locator("#free-preview");
+  await expect(freeCard).toContainText("3 images and 1 6-second video");
+  await expect(freeCard).toContainText("once per verified account");
+  await page.screenshot({
+    path: `test-results/${info.project.name}-free-preview-pricing.png`,
+    fullPage: true,
+  });
+  await freeCard
+    .getByRole("link", { name: "Try Free Preview", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/image\?free=1$/);
+  const freeRadio = page.getByRole("radio", {
+    name: "Use Free Preview",
+    exact: true,
+  });
+  const creditsRadio = page.getByRole("radio", {
+    name: "Use credits",
+    exact: true,
+  });
+  await expect(freeRadio).toBeChecked();
+  const account = async () => {
+    const r = await context.request.get("/api/account");
+    expect(r.status()).toBe(200);
+    return r.json();
+  };
+  const createFreeImage = async (prompt: string) => {
+    await page.getByLabel("Your prompt").fill(prompt);
+    await page.getByRole("button", { name: "Get exact credit quote" }).click();
+    await expect(
+      page.getByText("Your locked quote", { exact: true }),
+    ).toBeVisible();
+    await expect(page.locator(".quote-row")).toContainText(
+      "Free Preview · 0 credits",
+    );
+    await page.getByRole("button", { name: "Confirm & create sample" }).click();
+    await expect(page.locator(".result-info")).toContainText(prompt);
+    await expect(
+      page.getByRole("link", { name: "Download sample", exact: true }),
+    ).toBeVisible({ timeout: 30000 });
+    await expect(page.locator(".result-info")).toContainText("Free Preview");
+  };
+  await createFreeImage("Free image one: an imaginary mountain valley");
+  const imageHref = await page
+    .getByRole("link", { name: "Download sample", exact: true })
+    .getAttribute("href");
+  expect((await context.request.get(imageHref!)).status()).toBe(200);
+  await expect
+    .poll(async () => (await account()).freePreview.images.remaining)
+    .toBe(2);
+  expect((await account()).wallet.balance).toBe(1000);
+  await page.goto("/dashboard");
+  const allowance = page.getByRole("region", {
+    name: "Your Free Preview allowance",
+  });
+  await expect(allowance).toBeVisible();
+  await expect(
+    allowance.locator(".free-allowance-counts > div").first(),
+  ).toContainText("2 / 3");
+  await expect(
+    allowance.locator(".free-allowance-counts > div").nth(1),
+  ).toContainText("1 / 1");
+  await page.goto("/video");
+  // Make the choice explicit before trying an unsupported free duration.
+  await creditsRadio.check();
+  await freeRadio.check();
+  await page
+    .getByLabel("Your prompt")
+    .fill("Free six-second video: a sunlit imaginary valley");
+  await page.getByLabel("Duration").selectOption("8");
+  await expect(freeRadio).toBeChecked();
+  await expect(creditsRadio).not.toBeChecked();
+  await expect(page.locator(".funding-warning")).toContainText(
+    "6-second video",
+  );
+  await expect(
+    page.getByRole("button", { name: "Get exact credit quote" }),
+  ).toBeDisabled();
+  expect((await account()).wallet.balance).toBe(1000);
+  await page.getByLabel("Duration").selectOption("6");
+  await page.getByRole("button", { name: "Get exact credit quote" }).click();
+  await expect(page.locator(".quote-row")).toContainText(
+    "Free Preview · 0 credits",
+  );
+  await page.getByRole("button", { name: "Confirm & create sample" }).click();
+  await expect(page.locator(".result-info")).toContainText(
+    "Free six-second video",
+  );
+  await expect(
+    page.getByRole("link", { name: "Download sample", exact: true }),
+  ).toBeVisible({ timeout: 45000 });
+  await expect(page.locator(".result-info")).toContainText("6s");
+  await expect
+    .poll(async () => (await account()).freePreview.videos.remaining)
+    .toBe(0);
+  await expect(freeRadio).toBeChecked();
+  await expect(
+    page.getByRole("button", { name: "Get exact credit quote" }),
+  ).toBeDisabled();
+  await expect(page.locator(".funding-warning")).toContainText(
+    "free video allowance is used or reserved",
+  );
+  expect((await account()).wallet.balance).toBe(1000);
+  await page.goto("/image?free=1");
+  await createFreeImage("Free image two: warm light over a quiet coast");
+  await createFreeImage("Free image three: dramatic clouds above mountains");
+  await expect
+    .poll(async () => (await account()).freePreview.images.remaining)
+    .toBe(0);
+  await expect(freeRadio).toBeChecked();
+  await expect(
+    page.getByRole("button", { name: "Get exact credit quote" }),
+  ).toBeDisabled();
+  await expect(page.locator(".funding-warning")).toContainText(
+    "free image allowance is used or reserved",
+  );
+  const finalAccount = await account();
+  expect(finalAccount.wallet).toMatchObject({ balance: 1000, reserved: 0 });
+  expect(finalAccount.freePreview.images).toMatchObject({
+    remaining: 0,
+    used: 3,
+    reserved: 0,
+  });
+  expect(finalAccount.freePreview.videos).toMatchObject({
+    remaining: 0,
+    used: 1,
+    reserved: 0,
+  });
+  // Returning to the explicit free entry must not silently select the wallet.
+  await page.goto("/image?free=1");
+  await page
+    .getByLabel("Your prompt")
+    .fill("A new idea after the free preview is exhausted");
+  await expect(freeRadio).toBeChecked();
+  await expect(
+    page.getByRole("button", { name: "Get exact credit quote" }),
+  ).toBeDisabled();
+  // A customer can intentionally choose credits and obtain a fresh paid quote.
+  await creditsRadio.check();
+  await page.getByRole("button", { name: "Get exact credit quote" }).click();
+  await expect(page.locator(".quote-row")).toContainText("12 credits");
+  await expect(page.locator(".quote-row")).not.toContainText("Free Preview");
+  expect((await account()).wallet.balance).toBe(1000);
 });

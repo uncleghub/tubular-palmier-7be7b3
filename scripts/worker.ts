@@ -47,7 +47,9 @@ while (!stopping) {
             j.id,
             false,
             undefined,
-            "Generation paused before processing. Reserved credits were returned.",
+            j.funding_source === "free_preview"
+              ? "Generation paused. Free Preview allowance was restored."
+              : "Generation paused before processing. Reserved credits were returned.",
           );
           continue;
         }
@@ -58,7 +60,9 @@ while (!stopping) {
           j.id,
           false,
           undefined,
-          "Generation could not be completed. Reserved credits were returned.",
+          j.funding_source === "free_preview"
+            ? "Generation could not be completed. Free Preview allowance was restored."
+            : "Generation could not be completed. Reserved credits were returned.",
         );
       }
     } else await new Promise((r) => setTimeout(r, 1000));

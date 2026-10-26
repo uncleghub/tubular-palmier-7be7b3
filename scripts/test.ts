@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
-import { readdir, readFile } from "node:fs/promises";
+import { readdir } from "node:fs/promises";
+import { applyMigrations } from "../lib/migrations";
 import pg from "pg";
 const schema = "studio_test_" + randomUUID().replaceAll("-", "");
 const admin = new pg.Pool({ connectionString: process.env.DATABASE_URL });
@@ -12,9 +13,7 @@ try {
     options: `-c search_path=${schema}`,
   });
   try {
-    await setup.query(
-      await readFile(new URL("../migrations/001.sql", import.meta.url), "utf8"),
-    );
+    await applyMigrations(setup);
   } finally {
     await setup.end();
   }
@@ -24,7 +23,7 @@ try {
   code = await new Promise<number>((resolve, reject) => {
     const child = spawn(
       process.execPath,
-      ["--import", "tsx", "--test", ...files],
+      ["--import", "tsx", "--test", "--test-concurrency=1", ...files],
       {
         stdio: "inherit",
         env: {
