@@ -55,6 +55,8 @@ export const sampleAdapter: ProviderAdapter = {
           String(duration),
           "-c:v",
           "libx264",
+          "-threads",
+          "1",
           "-preset",
           "ultrafast",
           "-pix_fmt",

@@ -65,3 +65,7 @@ Backend tests create and drop an isolated PostgreSQL schema; the normal worker c
 - [Observed verification results](docs/VALIDATION.md)
 
 No domain, hosting account, provider funds or live checkout was purchased or opened. Add actual secret values through your host's secret manager, never source control or chat.
+
+## First-time Render demo
+
+See [the Render demo guide](docs/RENDER-DEMO.md) for the current Web Service form. The demonstration-only `npm run demo:host` command applies migrations and supervises both web and sample worker within one container, deriving the public origin from Render. It requires `APP_MODE=demo` and a configured PostgreSQL database. Production deployment continues to use separate web/worker processes. Free web hosting may sleep and lose local media; review actual database availability, expiry and prices before deploying.
