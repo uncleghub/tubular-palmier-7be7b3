@@ -1,9 +1,14 @@
 import type { CSSProperties } from "react";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { brand, demo } from "@/lib/config";
 import "./globals.css";
 import "./premium.css";
+import "./light.css";
+export const viewport: Viewport = {
+  themeColor: "#faf9fe",
+  colorScheme: "light",
+};
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.APP_URL || "http://localhost:3000"),
   title: { default: brand.name, template: `%s | ${brand.name}` },

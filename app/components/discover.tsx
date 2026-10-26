@@ -6,13 +6,15 @@ import {
   ArrowRight,
   ArrowUpRight,
   Image as ImageIcon,
+  ImagePlus,
+  Clapperboard,
+  Paperclip,
   Video,
   Sparkles,
   SlidersHorizontal,
   Plus,
   Zap,
   FolderOpen,
-  Coins,
   Play,
   MoveUpRight,
 } from "lucide-react";
@@ -100,13 +102,139 @@ export default function Discover() {
           <span className="studio-kicker">
             <span /> YOUR CREATIVE SPACE
           </span>
-          <h1>Let your imagination lead.</h1>
-          <p>One workspace. A whole world of possibilities.</p>
+          <h1>Big ideas start here.</h1>
+          <p>Your imagination. Your next creation. Your studio.</p>
         </div>
         <Link className="quiet-link" href="/library">
           <FolderOpen size={15} /> My creations <ArrowUpRight size={14} />
         </Link>
       </div>
+      <section className="idea-composer" aria-labelledby="idea-title">
+        <div className="composer-top">
+          <h2 id="idea-title">What will you create today?</h2>
+          <span>
+            <Sparkles size={12} /> CREATIVE PREVIEW
+          </span>
+        </div>
+        <div className="composer-body">
+          <div
+            className="composer-kind"
+            role="group"
+            aria-label="Choose a creative studio"
+          >
+            <button
+              className={kind === "image" ? "selected" : ""}
+              aria-pressed={kind === "image"}
+              onClick={() => setKind("image")}
+            >
+              <ImageIcon size={16} />
+              Image
+            </button>
+            <button
+              className={kind === "video" ? "selected" : ""}
+              aria-pressed={kind === "video"}
+              onClick={() => setKind("video")}
+            >
+              <Video size={16} />
+              Video
+            </button>
+          </div>
+          <label className="sr-only" htmlFor="creative-idea">
+            Describe your next idea
+          </label>
+          <textarea
+            id="creative-idea"
+            rows={3}
+            maxLength={2000}
+            value={idea}
+            onChange={(e) => setIdea(e.target.value)}
+            onKeyDown={(e) => {
+              if (
+                e.key === "Enter" &&
+                !e.shiftKey &&
+                !e.nativeEvent.isComposing
+              ) {
+                e.preventDefault();
+                openStudio();
+              }
+            }}
+            placeholder="A cinematic desert, a bold new product, a world that doesn’t exist…"
+          />
+          <button className="composer-submit" onClick={openStudio}>
+            Open studio <ArrowUpRight size={18} />
+          </button>
+        </div>
+        <div className="composer-bottom">
+          <span>
+            <Sparkles size={12} /> Start with a spark
+          </span>
+          {[
+            ["Cinematic landscape", scenes[0].prompt],
+            ["Editorial portrait", scenes[1].prompt],
+            ["Product photography", scenes[3].prompt],
+          ].map(([text, prompt]) => (
+            <button key={text} onClick={() => setIdea(prompt)}>
+              {text}
+              <Plus size={11} />
+            </button>
+          ))}
+          <span className="quote-reminder">
+            Shift + Enter for a new line · quote before generation
+          </span>
+          <Link
+            className="composer-reference"
+            href={`/${kind}${idea.trim() ? "?prompt=" + encodeURIComponent(idea.trim()) : ""}#reference`}
+          >
+            <Paperclip size={13} /> Add reference in studio
+          </Link>
+        </div>
+      </section>
+      <section
+        className="studio-shortcuts mode-grid"
+        aria-label="Choose a studio"
+      >
+        {[
+          {
+            label: "Text to image",
+            detail: "Start with a few words",
+            href: "/image",
+            icon: ImageIcon,
+            tone: "orange",
+          },
+          {
+            label: "Image to image",
+            detail: "Build from a reference",
+            href: "/image#reference",
+            icon: ImagePlus,
+            tone: "mint",
+          },
+          {
+            label: "Text to video",
+            detail: "Explore a moving scene",
+            href: "/video",
+            icon: Video,
+            tone: "lavender",
+          },
+          {
+            label: "Image to video",
+            detail: "Start with a still image",
+            href: "/video#reference",
+            icon: Clapperboard,
+            tone: "blue",
+          },
+        ].map((item) => (
+          <Link key={item.label} className="studio-shortcut" href={item.href}>
+            <span className={`shortcut-icon ${item.tone}`}>
+              <item.icon size={20} />
+            </span>
+            <div>
+              <h2>{item.label}</h2>
+              <p>{item.detail}</p>
+            </div>
+            <ArrowUpRight size={15} />
+          </Link>
+        ))}
+      </section>
       <section className="cinema-hero" aria-labelledby="hero-title">
         <ExampleArt
           scene="desert"
@@ -143,94 +271,6 @@ export default function Discover() {
           <span>01 / DESERT DREAMS</span>
           <span>Creative example · not a generated result</span>
         </div>
-      </section>
-      <section className="idea-composer" aria-labelledby="idea-title">
-        <div className="composer-top">
-          <h2 id="idea-title">What will you create today?</h2>
-          <span>Your next idea starts with a few words.</span>
-        </div>
-        <div className="composer-body">
-          <div
-            className="composer-kind"
-            role="group"
-            aria-label="Choose a creative studio"
-          >
-            <button
-              className={kind === "image" ? "selected" : ""}
-              aria-pressed={kind === "image"}
-              onClick={() => setKind("image")}
-            >
-              <ImageIcon size={16} />
-              Image
-            </button>
-            <button
-              className={kind === "video" ? "selected" : ""}
-              aria-pressed={kind === "video"}
-              onClick={() => setKind("video")}
-            >
-              <Video size={16} />
-              Video
-            </button>
-          </div>
-          <label className="sr-only" htmlFor="creative-idea">
-            Describe your next idea
-          </label>
-          <input
-            id="creative-idea"
-            maxLength={2000}
-            value={idea}
-            onChange={(e) => setIdea(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") openStudio();
-            }}
-            placeholder="A cinematic desert, a bold new product, a world that doesn’t exist…"
-          />
-          <button className="composer-submit" onClick={openStudio}>
-            Open studio <ArrowUpRight size={18} />
-          </button>
-        </div>
-        <div className="composer-bottom">
-          <span>
-            <Sparkles size={12} /> Start with a spark
-          </span>
-          {[
-            ["Cinematic landscape", scenes[0].prompt],
-            ["Editorial portrait", scenes[1].prompt],
-            ["Product photography", scenes[3].prompt],
-          ].map(([text, prompt]) => (
-            <button key={text} onClick={() => setIdea(prompt)}>
-              {text}
-              <Plus size={11} />
-            </button>
-          ))}
-          <span className="quote-reminder">
-            See your credit quote in the studio <Coins size={12} />
-          </span>
-        </div>
-      </section>
-      <section className="studio-shortcuts" aria-label="Choose a studio">
-        <Link href="/image" className="studio-shortcut">
-          <span className="shortcut-icon orange">
-            <ImageIcon size={21} />
-          </span>
-          <div>
-            <h2>Image studio</h2>
-            <p>Give your ideas a new perspective.</p>
-          </div>
-          <ArrowUpRight size={18} />
-        </Link>
-        <Link href="/video" className="studio-shortcut">
-          <span className="shortcut-icon lavender">
-            <Video size={21} />
-          </span>
-          <div>
-            <h2>
-              Video studio <span>6s / 8s DEMO</span>
-            </h2>
-            <p>Put your imagination in motion.</p>
-          </div>
-          <ArrowUpRight size={18} />
-        </Link>
       </section>
       <section
         className="inspiration explore-section"

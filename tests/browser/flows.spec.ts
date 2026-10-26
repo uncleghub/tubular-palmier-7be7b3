@@ -267,10 +267,16 @@ test("home composer mode, prompt handoff and inspiration filters", async ({
 
   await page.goto("/");
   const imageIdea = "An editorial photograph in warm natural light";
-  await page.getByLabel("Describe your next idea").fill(imageIdea);
-  await page.getByLabel("Describe your next idea").press("Enter");
+  const composer = page.getByLabel("Describe your next idea");
+  await composer.fill(imageIdea);
+  await composer.press("Shift+Enter");
+  await composer.pressSequentially("With soft shadows and a calm expression");
+  const multilineIdea = imageIdea + "\nWith soft shadows and a calm expression";
+  await expect(page).toHaveURL(/\/$/);
+  await expect(composer).toHaveValue(multilineIdea);
+  await composer.press("Enter");
   await expect(page).toHaveURL(/\/image\?prompt=/);
-  await expect(page.getByLabel("Your prompt")).toHaveValue(imageIdea);
+  await expect(page.getByLabel("Your prompt")).toHaveValue(multilineIdea);
 
   await page.goto("/");
   const gallery = page.locator(".editorial-gallery");
