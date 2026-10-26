@@ -1,0 +1,13 @@
+CREATE TABLE IF NOT EXISTS users (id text PRIMARY KEY, balance integer NOT NULL DEFAULT 0 CHECK(balance>=0), reserved integer NOT NULL DEFAULT 0 CHECK(reserved>=0), deleted_at timestamptz, created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS ledger (id uuid PRIMARY KEY, user_id text NOT NULL REFERENCES users(id), kind text NOT NULL CHECK(kind IN ('purchase','reservation','spend','release','refund','adjustment')), amount integer NOT NULL, reference text NOT NULL UNIQUE, reason text NOT NULL, created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS quotes (id uuid PRIMARY KEY, user_id text NOT NULL REFERENCES users(id), input jsonb NOT NULL, credits integer NOT NULL CHECK(credits>0), expires_at timestamptz NOT NULL, consumed boolean NOT NULL DEFAULT false);
+CREATE TABLE IF NOT EXISTS jobs (id uuid PRIMARY KEY, user_id text NOT NULL REFERENCES users(id), request_id uuid NOT NULL, model_id text NOT NULL, input jsonb NOT NULL, credits integer NOT NULL CHECK(credits>0), provider_cost_micros bigint NOT NULL, state text NOT NULL CHECK(state IN ('queued','running','succeeded','failed','uncertain')), attempt integer NOT NULL DEFAULT 0, provider_id text, error text, output_key text, width integer, height integer, duration numeric, lease_until timestamptz, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(), UNIQUE(user_id,request_id));
+CREATE INDEX IF NOT EXISTS jobs_queue ON jobs(state,created_at);
+CREATE TABLE IF NOT EXISTS purchases (id uuid PRIMARY KEY, user_id text NOT NULL REFERENCES users(id), package_id text NOT NULL, cents integer NOT NULL, credits integer NOT NULL, mode text NOT NULL, status text NOT NULL DEFAULT 'pending', created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS payment_events (id text PRIMARY KEY, purchase_id uuid NOT NULL REFERENCES purchases(id), kind text NOT NULL, created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS uploads (id uuid PRIMARY KEY, user_id text NOT NULL REFERENCES users(id), object_key text NOT NULL, mime text NOT NULL, created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS audit (id uuid PRIMARY KEY, actor text NOT NULL, action text NOT NULL, detail jsonb NOT NULL, created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS settings (key text PRIMARY KEY, value jsonb NOT NULL);
+CREATE TABLE IF NOT EXISTS rate_limits (key text PRIMARY KEY, count integer NOT NULL, reset_at timestamptz NOT NULL);
+
+ALTER TABLE purchases ADD COLUMN IF NOT EXISTS provider_transaction text UNIQUE;

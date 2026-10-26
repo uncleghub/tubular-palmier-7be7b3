@@ -1,0 +1,37 @@
+services:
+  database:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: studio
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a database password in your deployment secret store}
+      POSTGRES_DB: studio
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U studio -d studio"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+  web:
+    build: .
+    ports: ["127.0.0.1:3000:3000"]
+    env_file: .env.local
+    environment:
+      DATABASE_URL: postgresql://studio:${POSTGRES_PASSWORD}@database:5432/studio
+    volumes: ["demo-media:/app/.data"]
+    depends_on:
+      database: {condition: service_healthy}
+    restart: unless-stopped
+  worker:
+    build: .
+    command: [node, --import, tsx, scripts/worker.ts]
+    env_file: .env.local
+    environment:
+      DATABASE_URL: postgresql://studio:${POSTGRES_PASSWORD}@database:5432/studio
+    volumes: ["demo-media:/app/.data"]
+    depends_on:
+      database: {condition: service_healthy}
+    restart: unless-stopped
+volumes:
+  postgres-data:
+  demo-media:
