@@ -56,3 +56,7 @@ Before a release: verify merchant eligibility/underwriting, exact model capabili
 ## Cloud build proxy
 
 Some cloud machines require their managed HTTPS proxy and CA during Docker builds. The Dockerfile supports an optional BuildKit `proxy_ca` certificate mount; it does not disable TLS, package signatures or checksums. Forward the platform's existing `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY` build arguments. In this machine Docker also needed the existing `proxy` hostname mapped to its host-resolved address; DNS in a build container did not resolve it. The CA mount is world-readable **only inside that build step** because Debian's unprivileged package downloader must read this public trust certificate; it is not copied into the runtime image. Never mount API credentials as a CA or hardcode private proxy configuration into source.
+
+## HTTPS certificate bootstrap
+
+The official `node:24-bookworm-slim` image does not include Debian's system CA bundle. Before downloading packages over HTTPS, the Dockerfile now seeds the bundle from the public roots bundled with the same official Node image (`node:tls.rootCertificates`). It then installs Debian's signed `ca-certificates` and FFmpeg packages using normal verification. The optional cloud-proxy certificate remains a build-only mount, not a requirement on Render. No TLS or repository-signature checks are disabled.
