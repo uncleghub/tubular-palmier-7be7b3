@@ -53,3 +53,11 @@ Implemented the requested light, professional direction with pearl-white surface
 Observed checks: ESLint, TypeScript and production build passed. All **8 desktop/mobile browser tests passed in 33.1 seconds**, including Shift+Enter preserving a newline, Enter handing the multiline prompt to the image studio, Image/Video mode handoff, gallery filtering, mobile navigation, private downloads, test credit purchases, confirmed-failure release and authorization checks. Local desktop/phone screenshots of home, image studio and pricing were captured and visually inspected; no clipping or horizontal overflow was found. The 17 existing backend tests passed in the preceding interface revision and their implementation is unchanged by this appearance update. Public Render rollout must still be observed separately.
 
 The corresponding `geez-studio:bright` Docker image also built successfully with the existing certificate-verification setup. No hosting service, payment mode or provider credential was added.
+
+## Bold obsidian typography — 27 October 2026
+
+Replaced the light skin with an obsidian/charcoal and violet theme while preserving the prompt-first layout. Added self-hosted, OFL-licensed Manrope Variable and genuine 800-weight headings, with 700–800 controls and 600–650 support copy. Removed the serif/italic headline styling and updated dark browser/social metadata.
+
+Observed verification: lint, TypeScript and production build passed. Existing **8/8 desktop/mobile browser tests passed in 34.2 seconds**. At1440px and390px on home/image/video/pricing, computed styles show `Manrope Variable`, headings at800 with normal style, and body background rgb(14,17,27). The actual locally served WOFF2 returned HTTP200 and the800-weight font readiness check passed. No white form/card/navigation surfaces or horizontal overflow were detected. Desktop/mobile screenshots were visually reviewed for bold type, dark surfaces and clipping.
+
+The `geez-studio:obsidian` Docker image built successfully with frozen dependency installation, locally bundled fonts and the normal production build.

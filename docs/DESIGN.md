@@ -1,6 +1,6 @@
 # GEEZ AI STUDIO interface refresh
 
-The existing application is rebranded to **GEEZ AI STUDIO** with a bright pearl-white, violet and coral visual system. Default names in metadata, the wordmark, social preview and newly created sample files use the new identity. Explicit `NEXT_PUBLIC_APP_NAME` settings still override the default; changing public values requires rebuilding. The existing Render service, branch and database resource names stay intact so the working deployment configuration is preserved.
+The existing application is rebranded to **GEEZ AI STUDIO** with a deep obsidian/charcoal and violet visual system. Default names in metadata, the wordmark, social preview and newly created sample files use the new identity. Explicit `NEXT_PUBLIC_APP_NAME` settings still override the default; changing public values requires rebuilding. The existing Render service, branch and database resource names stay intact so the working deployment configuration is preserved.
 
 ## Interface
 
@@ -23,3 +23,9 @@ Local before/after home screenshots were captured and reviewed at 1440px desktop
 ## Bright studio direction
 
 The user selected a brighter professional direction, referencing Higgsfield and ChatGPT. GEEZ retains its own identity and implementation: a creation-first studio, a large conversational prompt surface, four image/video task entry points and photographic-style examples. This is an original interface inspired by those workflow patterns, not a verified pixel-for-pixel clone or an affiliation claim. The light skin covers navigation, creation forms, pricing, accounts and dialogs, with violet/coral highlights and deliberate text contrast. The actual demo/provider capability boundaries are unchanged.
+
+## Bold obsidian typography direction
+
+The owner requested removing the white background and using stronger professional type. The active theme is now `app/obsidian.css`, with the earlier light skin removed. The prompt-first layout and working generation controls remain intact. Headings use genuine Manrope weight 800, controls use 700–800, and body/support copy uses 600–650. The serif/italic hero treatment is replaced by the same bold sans family.
+
+Manrope is self-hosted from `@fontsource-variable/manrope` 5.3.0, licensed SIL OFL-1.1. Its unmodified variable WOFF2 assets are bundled through Next.js, with no Google Fonts request at page load. License text is supplied in `public/fonts/Manrope-OFL.txt`. The charcoal/violet surfaces and stronger contrast extend through navigation, studios, pricing, library, settings and checkout previews. Matching dark social artwork and browser theme metadata are included.

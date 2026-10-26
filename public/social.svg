@@ -1,37 +1,40 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <defs>
-    <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffffff"/><stop offset="1" stop-color="#edeafb"/></linearGradient>
-    <linearGradient id="violet" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#9b7bff"/><stop offset="1" stop-color="#6634dc"/></linearGradient>
-    <linearGradient id="coral" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffc3b0"/><stop offset="1" stop-color="#ff785f"/></linearGradient>
-    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffffff" stop-opacity=".9"/><stop offset="1" stop-color="#e6ddff" stop-opacity=".5"/></linearGradient>
+    <linearGradient id="obsidian" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0e111b"/><stop offset="1" stop-color="#18152c"/></linearGradient>
+    <linearGradient id="violet" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#b091ff"/><stop offset=".55" stop-color="#8057ef"/><stop offset="1" stop-color="#4d2ea1"/></linearGradient>
+    <linearGradient id="ink" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#46405f"/><stop offset="1" stop-color="#1d2134"/></linearGradient>
+    <linearGradient id="coral" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f1a285"/><stop offset="1" stop-color="#b76b9d"/></linearGradient>
+    <radialGradient id="halo"><stop stop-color="#6d49bd" stop-opacity=".35"/><stop offset="1" stop-color="#6d49bd" stop-opacity="0"/></radialGradient>
   </defs>
-  <rect width="1200" height="630" fill="url(#paper)"/>
-  <path d="M760 0h440v630H865c-80-93-126-214-120-350 3-104 27-198 15-280Z" fill="#e9e3fb"/>
-  <circle cx="1082" cy="113" r="196" fill="#f5efff"/>
-  <circle cx="1092" cy="548" r="144" fill="#ffe8df"/>
-  <rect x="68" y="62" width="54" height="54" rx="16" fill="#7040dc"/>
-  <path d="M83 83l12-7 12 7-12 7-12-7Zm0 9 12 7 12-7M83 100l12 7 12-7" fill="none" stroke="#ffffff" stroke-width="3" stroke-linejoin="round"/>
-  <text x="140" y="97" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" font-weight="600" letter-spacing="3" fill="#514469">CREATE SOMETHING EXTRAORDINARY</text>
-  <text x="68" y="278" font-family="DejaVu Sans, Arial, sans-serif" font-size="112" font-weight="700" letter-spacing="-6" fill="#20163e">GEEZ</text>
-  <text x="70" y="354" font-family="DejaVu Sans, Arial, sans-serif" font-size="56" font-weight="600" letter-spacing="5" fill="#6740c8">AI STUDIO</text>
-  <rect x="71" y="390" width="70" height="5" rx="2.5" fill="#ff846b"/>
-  <text x="70" y="457" font-family="DejaVu Sans, Arial, sans-serif" font-size="25" fill="#5a526a">Create images. Generate videos.</text>
-  <text x="70" y="495" font-family="DejaVu Sans, Arial, sans-serif" font-size="25" fill="#5a526a">Unlock your ideas.</text>
-  <g transform="translate(941 307) rotate(-24)">
-    <rect x="-137" y="-159" width="272" height="316" rx="58" fill="#d8cceb"/>
-    <rect x="-150" y="-173" width="272" height="316" rx="58" fill="url(#violet)"/>
-    <circle cx="-16" cy="-23" r="90" fill="none" stroke="#c6b1ff" stroke-width="24"/>
-    <circle cx="-16" cy="-23" r="54" fill="none" stroke="#eee6ff" stroke-width="5"/>
+  <rect width="1200" height="630" fill="url(#obsidian)"/>
+  <circle cx="1008" cy="282" r="425" fill="url(#halo)"/>
+  <path d="M762 0h438v630H878C763 503 720 362 740 210c10-76 26-147 22-210Z" fill="#211d36" opacity=".65"/>
+  <path d="M759 0c29 173-47 307 6 465 20 61 57 116 106 165" fill="none" stroke="#5f4c85" stroke-opacity=".2"/>
+  <rect x="68" y="62" width="54" height="54" rx="16" fill="#7952e7"/>
+  <path d="M106 77 95 71 83 78v15l12 8 12-7v-9H94v6h6v1l-5 3-6-4V82l6-4 5 3" fill="none" stroke="#ffffff" stroke-width="2.8" stroke-linejoin="round"/>
+  <circle cx="110" cy="72" r="3" fill="#f6ad91"/>
+  <text x="140" y="97" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" font-weight="700" letter-spacing="2.4" fill="#c6bddb">CREATE SOMETHING EXTRAORDINARY</text>
+  <text x="68" y="278" font-family="DejaVu Sans, Arial, sans-serif" font-size="128" font-weight="800" letter-spacing="-6" fill="#f7f7fc">GEEZ</text>
+  <text x="71" y="354" font-family="DejaVu Sans, Arial, sans-serif" font-size="60" font-weight="800" letter-spacing="4" fill="#bca2ff">AI STUDIO</text>
+  <rect x="71" y="390" width="78" height="6" rx="3" fill="#a583ff"/>
+  <text x="70" y="457" font-family="DejaVu Sans, Arial, sans-serif" font-size="25" font-weight="700" fill="#c2c5d6">Create images. Generate videos.</text>
+  <text x="70" y="495" font-family="DejaVu Sans, Arial, sans-serif" font-size="25" font-weight="700" fill="#c2c5d6">Unlock your ideas.</text>
+  <g transform="translate(948 289) rotate(-19)">
+    <rect x="-136" y="-151" width="272" height="316" rx="48" fill="#090b13" opacity=".7"/>
+    <rect x="-148" y="-168" width="272" height="316" rx="48" fill="url(#violet)" stroke="#c5afff" stroke-opacity=".45" stroke-width="2"/>
+    <circle cx="-12" cy="-19" r="88" fill="#301e68" stroke="#cab5ff" stroke-width="22"/>
+    <circle cx="-12" cy="-19" r="54" fill="none" stroke="#eee6ff" stroke-opacity=".8" stroke-width="5"/>
+    <circle cx="-12" cy="-19" r="22" fill="#e9dcff" opacity=".88"/>
   </g>
-  <g transform="translate(1008 403) rotate(14)">
-    <rect x="-108" y="-114" width="218" height="218" rx="43" fill="#e6bac7"/>
-    <rect x="-114" y="-122" width="218" height="218" rx="43" fill="url(#coral)"/>
-    <path d="M-29-66 43-16-29 34Z" fill="#fffaf5"/>
+  <g transform="translate(1011 430) rotate(12)">
+    <rect x="-106" y="-111" width="218" height="218" rx="37" fill="#090b13" opacity=".8"/>
+    <rect x="-114" y="-123" width="218" height="218" rx="37" fill="url(#ink)" stroke="#a99ac9" stroke-opacity=".6" stroke-width="2"/>
+    <path d="M-32-69 46-16-32 37Z" fill="#dccbff"/>
   </g>
-  <g transform="translate(814 157) rotate(10)">
-    <rect x="-58" y="-58" width="116" height="116" rx="29" fill="url(#glass)" stroke="#ffffff" stroke-width="2"/>
-    <path d="m0-31 8 23 23 8-23 8-8 23-8-23-23-8 23-8Z" fill="#7950d8"/>
+  <g transform="translate(802 158) rotate(10)">
+    <rect x="-54" y="-54" width="108" height="108" rx="26" fill="#262137" stroke="#7e669d" stroke-opacity=".6" stroke-width="2"/>
+    <path d="m0-30 8 22 22 8-22 8-8 22-8-22-22-8 22-8Z" fill="#d6bfff"/>
   </g>
-  <circle cx="1105" cy="254" r="7" fill="#ff886b"/>
-  <circle cx="748" cy="446" r="5" fill="#8b5de0"/>
+  <circle cx="1110" cy="239" r="7" fill="url(#coral)"/>
+  <circle cx="753" cy="443" r="5" fill="#9e78eb"/>
 </svg>

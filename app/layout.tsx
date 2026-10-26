@@ -4,10 +4,11 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { brand, demo } from "@/lib/config";
 import "./globals.css";
 import "./premium.css";
-import "./light.css";
+import "@fontsource-variable/manrope";
+import "./obsidian.css";
 export const viewport: Viewport = {
-  themeColor: "#faf9fe",
-  colorScheme: "light",
+  themeColor: "#0e111b",
+  colorScheme: "dark",
 };
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.APP_URL || "http://localhost:3000"),

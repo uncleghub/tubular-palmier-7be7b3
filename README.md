@@ -2,7 +2,7 @@
 
 Create images. Generate videos. Unlock your ideas.
 
-A TypeScript / Next.js application with a responsive pearl-and-violet studio, PostgreSQL wallet and durable queue, a separate worker, private media access, Clerk integration, and an optional Paddle **sandbox** adapter.
+A TypeScript / Next.js application with a responsive obsidian-and-violet studio, PostgreSQL wallet and durable queue, a separate worker, private media access, Clerk integration, and an optional Paddle **sandbox** adapter.
 
 **Delivery status: deployed demonstration, not a finished commercial launch.** No live AI model has been verified or enabled. Default checkout is a local signed-event simulation, not a gateway sandbox. No real money is collected. The owner deployed the demo to [Render](https://tubular-palmier-7be7b3.onrender.com/) and tested sign-in plus sample image/video downloads. Workspace access to that public host is restricted, so independent end-to-end checks on the public deployment remain limited. Read [launch blockers](docs/LAUNCH.md) before configuring external services.
 
