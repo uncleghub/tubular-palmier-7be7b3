@@ -3,6 +3,12 @@ import { pool, transaction } from "./db";
 import { validateModel, GenerationInput } from "./catalog";
 import { demo } from "./config";
 import {
+  checkSubscriptionAllowance,
+  reserveSubscriptionAllowance,
+  recordSubscriptionReservation,
+  settleSubscriptionAllowance,
+} from "./subscriptions";
+import {
   checkFreePreview,
   reserveFreePreview,
   settleFreePreview,
@@ -19,11 +25,15 @@ export async function quote(user: string, input: GenerationInput) {
   }
   const fundingSource = input.fundingSource || "wallet";
   if (fundingSource === "free_preview") await checkFreePreview(user, input, m);
+  const subscriptionPeriodId =
+    fundingSource === "subscription"
+      ? await checkSubscriptionAllowance(user, m.credits!)
+      : null;
   const id = randomUUID();
   const clean = { ...input };
   delete clean.quoteId;
   await pool.query(
-    "INSERT INTO quotes(id,user_id,input,credits,expires_at,funding_source,list_price_credits) VALUES($1,$2,$3,$4,now()+interval '5 minutes',$5,$6)",
+    "INSERT INTO quotes(id,user_id,input,credits,expires_at,funding_source,list_price_credits,subscription_period_id) VALUES($1,$2,$3,$4,now()+interval '5 minutes',$5,$6,$7)",
     [
       id,
       user,
@@ -31,12 +41,14 @@ export async function quote(user: string, input: GenerationInput) {
       fundingSource === "free_preview" ? 0 : m.credits,
       fundingSource,
       m.credits,
+      subscriptionPeriodId,
     ],
   );
   return {
     id,
     credits: fundingSource === "free_preview" ? 0 : m.credits,
     fundingSource,
+    ...(subscriptionPeriodId ? { subscriptionPeriodId } : {}),
     expiresIn: 300,
   };
 }
@@ -84,6 +96,7 @@ export async function reserveJob(user: string, input: GenerationInput) {
     const credits = q.rows[0].credits;
     const listPrice = q.rows[0].list_price_credits || credits;
     const isFree = q.rows[0].funding_source === "free_preview";
+    const isSubscription = q.rows[0].funding_source === "subscription";
     if (
       Number(u.provider_micros) + m.providerCostMicros! >
         generationLimit("GLOBAL_DAILY_PROVIDER_MICROS", 10000000) ||
@@ -99,6 +112,13 @@ export async function reserveJob(user: string, input: GenerationInput) {
           "Free Preview daily capacity reached. Try again tomorrow or choose credits.",
         );
       await reserveFreePreview(c, user, input, m);
+    } else if (isSubscription) {
+      await reserveSubscriptionAllowance(
+        c,
+        user,
+        q.rows[0].subscription_period_id,
+        credits,
+      );
     } else {
       const wallet = await c.query(
         "UPDATE users SET balance=balance-$2,reserved=reserved+$2 WHERE id=$1 AND balance >= $2 AND deleted_at IS NULL RETURNING id",
@@ -114,7 +134,7 @@ export async function reserveJob(user: string, input: GenerationInput) {
       input.quoteId,
     ]);
     const job = await c.query(
-      "INSERT INTO jobs(id,user_id,request_id,model_id,input,credits,provider_cost_micros,state,funding_source,list_price_credits,media_kind) VALUES($1,$2,$3,$4,$5,$6,$7,'queued',$8,$9,$10) RETURNING *",
+      "INSERT INTO jobs(id,user_id,request_id,model_id,input,credits,provider_cost_micros,state,funding_source,list_price_credits,media_kind,subscription_period_id) VALUES($1,$2,$3,$4,$5,$6,$7,'queued',$8,$9,$10,$11) RETURNING *",
       [
         id,
         user,
@@ -123,15 +143,24 @@ export async function reserveJob(user: string, input: GenerationInput) {
         input,
         credits,
         m.providerCostMicros,
-        isFree ? "free_preview" : "wallet",
+        q.rows[0].funding_source,
         listPrice,
         m.kind,
+        q.rows[0].subscription_period_id,
       ],
     );
     if (isFree) {
       await c.query(
         "INSERT INTO free_preview_events(id,user_id,job_id,kind,media_kind,reference) VALUES($1,$2,$3,'reservation',$4,$5)",
         [randomUUID(), user, id, m.kind, "free:reserve:" + id],
+      );
+    } else if (isSubscription) {
+      await recordSubscriptionReservation(
+        c,
+        user,
+        id,
+        q.rows[0].subscription_period_id,
+        credits,
       );
     } else {
       await c.query(
@@ -154,6 +183,8 @@ export async function finishJob(
     if (!j || ["succeeded", "failed"].includes(j.state)) return;
     if (j.funding_source === "free_preview") {
       await settleFreePreview(c, j, success);
+    } else if (j.funding_source === "subscription") {
+      await settleSubscriptionAllowance(c, j, success);
     } else {
       await c.query(
         "UPDATE users SET reserved=reserved-$2,balance=balance+$3 WHERE id=$1",

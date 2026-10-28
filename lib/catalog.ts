@@ -114,7 +114,9 @@ export const inputSchema = z
     referenceId: z.string().uuid().optional(),
     requestId: z.string().uuid(),
     quoteId: z.string().uuid().optional(),
-    fundingSource: z.enum(["wallet", "free_preview"]).optional(),
+    fundingSource: z
+      .enum(["wallet", "free_preview", "subscription"])
+      .optional(),
   })
   .strict();
 export type GenerationInput = z.infer<typeof inputSchema>;

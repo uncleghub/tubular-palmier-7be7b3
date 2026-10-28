@@ -36,7 +36,7 @@ These access denials are **not** evidence of provider unavailability in Zambia. 
 
 ## Wallet denomination and launch pricing
 
-Every pack costs **$0.01 per credit** before taxes: 500 credits/$5, 1,000/$10, 2,000/$20, 5,000/$50. Premium is the highest pack. Packs never imply a fixed number of outputs. Purchased balances do not expire; media retention is separate.
+The draft monthly plans allocate **$0.01 of pre-tax plan price per included credit**: 500 credits/$5/month, 1,000/$10/month, 2,000/$20/month, 5,000/$50/month. Premium is the highest plan. Monthly allowances expire at their paid-period end and never imply a fixed number of outputs. Old one-time test-wallet records retain their original non-expiring accounting. Media retention is separate. See `SUBSCRIPTIONS.md` for lifecycle behavior and `UNIT-ECONOMICS.md` for assumptions; no live provider or gateway costs have been measured.
 
 All monetary inputs use integer microdollars or integer cents; wallet values use integer credits. `creditCost` computes:
 

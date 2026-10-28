@@ -7,8 +7,26 @@ export const brand = {
 };
 export const demo = process.env.APP_MODE !== "production";
 export const packages = [
-  { id: "starter", name: "Starter", cents: 500, credits: 500 },
-  { id: "creator", name: "Creator", cents: 1000, credits: 1000 },
-  { id: "pro", name: "Pro", cents: 2000, credits: 2000 },
-  { id: "premium", name: "Premium", cents: 5000, credits: 5000 },
+  {
+    id: "starter",
+    name: "Starter",
+    cents: 500,
+    credits: 500,
+    interval: "month",
+  },
+  {
+    id: "creator",
+    name: "Creator",
+    cents: 1000,
+    credits: 1000,
+    interval: "month",
+  },
+  { id: "pro", name: "Pro", cents: 2000, credits: 2000, interval: "month" },
+  {
+    id: "premium",
+    name: "Premium",
+    cents: 5000,
+    credits: 5000,
+    interval: "month",
+  },
 ] as const;

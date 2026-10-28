@@ -1,6 +1,12 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
-import { useState, useEffect, useCallback, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SignIn, SignUp, SignOutButton } from "@clerk/nextjs";
@@ -40,7 +46,23 @@ type FreePreviewState = {
   videoModelId: string | null;
   videoSeconds: number;
 };
-type FundingSource = "wallet" | "free_preview";
+type FundingSource = "wallet" | "free_preview" | "subscription";
+type Subscription = {
+  id: string;
+  planId: string;
+  planName: string;
+  status: "active" | "past_due" | "canceled" | "expired";
+  cancelAtPeriodEnd: boolean;
+  periodStart: string;
+  periodEnd: string;
+  credits: {
+    total: number;
+    remaining: number;
+    reserved: number;
+    spent: number;
+  };
+  mode: "test";
+};
 type Job = {
   id: string;
   model_id: string;
@@ -65,6 +87,7 @@ type Purchase = {
 type Account = {
   wallet: { balance: number; reserved: number };
   freePreview?: FreePreviewState;
+  subscription?: Subscription | null;
   jobs: Job[];
   purchases: Purchase[];
   ledger: {
@@ -76,6 +99,33 @@ type Account = {
   demo: boolean;
 };
 const name = process.env.NEXT_PUBLIC_APP_NAME || "GEEZ AI STUDIO";
+const billingDate = (value: string) =>
+  new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeZone: "UTC",
+  }).format(new Date(value));
+function modalKeyboard(
+  event: ReactKeyboardEvent<HTMLElement>,
+  close: () => void,
+) {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    close();
+  }
+  if (event.key !== "Tab") return;
+  const controls = event.currentTarget.querySelectorAll<HTMLElement>(
+    'button:not(:disabled), a[href], input:not(:disabled), [tabindex="0"]',
+  );
+  const first = controls[0],
+    last = controls[controls.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last?.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first?.focus();
+  }
+}
 async function api(path: string, body?: unknown, method?: string) {
   const r = await fetch("/api/" + path, {
     method: method || (body ? "POST" : "GET"),
@@ -104,8 +154,10 @@ export default function Studio({
   initialFreePreview?: boolean;
 }) {
   const settingsVersion = useRef(0);
+  const modalRef = useRef<HTMLElement>(null);
   const demo = isDemo;
   const router = useRouter();
+  const [clientTime, setClientTime] = useState(() => Date.now());
   const [account, setAccount] = useState<Account | null>(null),
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false),
@@ -134,6 +186,7 @@ export default function Studio({
       id: string;
       package: (typeof packages)[number];
     } | null>(null),
+    [cancelDialog, setCancelDialog] = useState(false),
     [latest, setLatest] = useState<string>();
   const refresh = useCallback(async () => {
     try {
@@ -141,6 +194,10 @@ export default function Studio({
     } catch {
       setAccount(null);
     }
+  }, []);
+  useEffect(() => {
+    const timer = setInterval(() => setClientTime(Date.now()), 30000);
+    return () => clearInterval(timer);
   }, []);
   useEffect(() => {
     let active = true;
@@ -167,6 +224,12 @@ export default function Studio({
     window.addEventListener("keydown", handle);
     return () => window.removeEventListener("keydown", handle);
   }, [menu]);
+  useEffect(() => {
+    if (!purchase && !cancelDialog) return;
+    const previous = document.activeElement as HTMLElement | null;
+    modalRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    return () => previous?.focus();
+  }, [purchase, cancelDialog]);
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
     setNotice("");
@@ -204,11 +267,23 @@ export default function Studio({
       duration === (allowance?.videoSeconds || freePreviewPlan.videoSeconds));
   const freeEligible =
     !!allowance?.enabled && remaining > 0 && freeSettingsMatch;
+  const subscription = account?.subscription;
+  const monthlyAvailable =
+    !!subscription &&
+    new Date(subscription.periodEnd).getTime() > clientTime &&
+    ["active", "past_due"].includes(subscription.status);
+  const monthlyRemaining = monthlyAvailable
+    ? subscription.credits.remaining
+    : 0;
+  const monthlyEligible =
+    monthlyAvailable && monthlyRemaining >= (model.credits || 0);
   const effectiveFunding: FundingSource =
     fundingChoice === "auto"
       ? freeEligible
         ? "free_preview"
-        : "wallet"
+        : monthlyEligible
+          ? "subscription"
+          : "wallet"
       : fundingChoice;
   const quoteFunding = quote?.fundingSource || effectiveFunding;
   const freeProblem = !allowance?.enabled
@@ -220,7 +295,9 @@ export default function Studio({
         : remaining < 1
           ? `Your free ${kind} allowance is used or reserved for another job. Select Use credits to continue.`
           : "";
-  const fundingBlocked = effectiveFunding === "free_preview" && !freeEligible;
+  const fundingBlocked =
+    (effectiveFunding === "free_preview" && !freeEligible) ||
+    (effectiveFunding === "subscription" && !monthlyEligible);
   const input = () => ({
     fundingSource: quote?.fundingSource || effectiveFunding,
     modelId,
@@ -235,6 +312,19 @@ export default function Studio({
     settingsVersion.current += 1;
     setQuote(null);
   }
+  const dismissCheckout = () =>
+    run(async () => {
+      if (!purchase) return;
+      try {
+        await api("subscription/test-payment", {
+          checkoutId: purchase.id,
+          outcome: "canceled",
+        });
+      } finally {
+        setPurchase(null);
+        await refresh();
+      }
+    });
   const current =
     account?.jobs.find((j) => j.id === latest) ||
     account?.jobs.find((j) => j.model_id === modelId);
@@ -324,7 +414,7 @@ export default function Studio({
             </div>
             <p>Your next creation starts here.</p>
             <Link href="/pricing">
-              Explore credit packs <ArrowUpRight size={15} />
+              Explore monthly plans <ArrowUpRight size={15} />
             </Link>
           </div>
           <Link className="navlink" href="/help">
@@ -379,10 +469,20 @@ export default function Studio({
               <span />
               {demo ? "DEMO WORKSPACE" : "STUDIO PREVIEW"}
             </span>
+            {account?.subscription && (
+              <Link
+                href="/settings#billing"
+                className="balance monthly-balance"
+                aria-label={`${monthlyRemaining} monthly credits available`}
+              >
+                <Coins size={16} /> {monthlyRemaining.toLocaleString()}
+                <span>monthly</span>
+              </Link>
+            )}
             <Link href="/pricing" className="balance">
               <Coins size={16} />
               {account ? account.wallet.balance.toLocaleString() : "0"}{" "}
-              <span>credits</span>
+              <span>legacy credits</span>
               <Plus size={14} />
             </Link>
             {account ? (
@@ -492,6 +592,35 @@ export default function Studio({
                       </label>
                       <label
                         className={
+                          effectiveFunding === "subscription"
+                            ? "funding-option selected"
+                            : "funding-option"
+                        }
+                      >
+                        <input
+                          type="radio"
+                          name="generation-funding"
+                          aria-label="Use monthly credits"
+                          checked={effectiveFunding === "subscription"}
+                          onChange={() => {
+                            setFundingChoice("subscription");
+                            change();
+                          }}
+                        />
+                        <span>
+                          <strong>Use monthly credits</strong>
+                          <small>
+                            {monthlyAvailable && subscription
+                              ? `${monthlyRemaining} available · until ${billingDate(subscription.periodEnd)}`
+                              : "Choose a monthly plan to start"}
+                          </small>
+                        </span>
+                        <span className="funding-price">
+                          {model.credits} credits
+                        </span>
+                      </label>
+                      <label
+                        className={
                           effectiveFunding === "wallet"
                             ? "funding-option selected"
                             : "funding-option"
@@ -509,7 +638,7 @@ export default function Studio({
                         />
                         <span>
                           <strong>Use credits</strong>
-                          <small>Pay from your studio wallet</small>
+                          <small>Pay from your separate legacy wallet</small>
                         </span>
                         <span className="funding-price">
                           {model.credits} credits
@@ -517,12 +646,14 @@ export default function Studio({
                       </label>
                       <p className="funding-help">
                         {demo
-                          ? "Free Preview uses demo samples. Your 1,000 test credits are separate."
+                          ? "Free Preview, monthly credits and your 1,000 legacy test credits are separate. All produce demo samples."
                           : "Free Preview is a one-time allowance per verified account."}
                       </p>
                       {fundingBlocked && (
                         <p className="funding-warning" role="status">
-                          {freeProblem}
+                          {effectiveFunding === "subscription"
+                            ? "Your monthly allowance is unavailable or insufficient. Choose a different funding option or manage your plan. No wallet credits will be charged automatically."
+                            : freeProblem}
                         </p>
                       )}
                     </fieldset>
@@ -653,6 +784,9 @@ export default function Studio({
                     </span>
                     <strong>
                       {quoteFunding === "free_preview" ? "Free Preview · " : ""}
+                      {quoteFunding === "subscription"
+                        ? "Monthly allowance · "
+                        : ""}
                       {quote?.credits ??
                         (effectiveFunding === "free_preview"
                           ? 0
@@ -768,7 +902,7 @@ export default function Studio({
                           {current.duration && ` · ${current.duration}s`} ·{" "}
                           {current.funding_source === "free_preview"
                             ? "Free Preview"
-                            : `${current.credits} credits`}
+                            : `${current.credits} ${current.funding_source === "subscription" ? "monthly credits" : "wallet credits"}`}
                         </div>
                         {current.state === "succeeded" && (
                           <a
@@ -813,13 +947,14 @@ export default function Studio({
               {heading(
                 "A LITTLE FUEL FOR YOUR IDEAS",
                 "More room to create.",
-                "One-time credit purchases. No subscription. No recurring charges.",
+                "Monthly plans with a fresh allowance each paid month. Cancel renewal in account settings.",
               )}
               <div className="pricing-notice">
                 <Shield size={18} />
                 <p>
                   <strong>Test checkout only.</strong> No money is collected.
-                  These packages add demo credits with no cash value.
+                  Monthly billing is simulated. No real subscription or card
+                  charge is created.
                 </p>
               </div>
               <section className="panel free-preview-card" id="free-preview">
@@ -906,21 +1041,22 @@ export default function Studio({
                     </p>
                     <div className="price">
                       ${p.cents / 100}
-                      <span>USD / one time</span>
+                      <span>USD / month</span>
                     </div>
                     <div className="pack-credits">
                       <Coins size={18} />
-                      <strong>{p.credits.toLocaleString()}</strong> credits
+                      <strong>{p.credits.toLocaleString()}</strong> credits /
+                      month
                     </div>
                     <ul>
                       <li>
                         <Check size={15} /> Image & video demo workflow
                       </li>
                       <li>
-                        <Check size={15} /> No automatic renewal
+                        <Check size={15} /> Monthly renewal · cancel anytime
                       </li>
                       <li>
-                        <Check size={15} /> Purchased credits do not expire
+                        <Check size={15} /> Allowance resets each paid month
                       </li>
                     </ul>
                     <button
@@ -929,11 +1065,21 @@ export default function Studio({
                       onClick={() =>
                         run(async () => {
                           if (!account) {
+                            if (!demo) {
+                              router.push("/sign-up");
+                              return;
+                            }
                             await api("session", {});
                             await refresh();
                           }
-                          const checkout = await api("checkout", {
-                            packageId: p.id,
+                          if (!demo) {
+                            setNotice(
+                              "Monthly subscriptions are not open for real payments yet.",
+                            );
+                            return;
+                          }
+                          const checkout = await api("subscription/checkout", {
+                            planId: p.id,
                           });
                           if (checkout.url) {
                             window.location.href = checkout.url;
@@ -941,7 +1087,7 @@ export default function Studio({
                         })
                       }
                     >
-                      Try {p.name} checkout <ArrowUpRight size={16} />
+                      Try {p.name} monthly plan <ArrowUpRight size={16} />
                     </button>
                   </section>
                 ))}
@@ -949,10 +1095,13 @@ export default function Studio({
               <div className="pricing-explainer">
                 <h2>Credits, explained.</h2>
                 <p>
-                  Credits are your studio wallet, not a fixed number of images
-                  or videos. Every model and output setting has its own price,
-                  shown before you confirm. Demo images cost 12 credits; demo
-                  videos cost 80 credits. Live prices have not been configured.
+                  Each monthly plan includes a fixed allowance, not unlimited
+                  generation. Unused monthly credits expire at the end of the
+                  paid period and do not roll over. Each successful renewal
+                  starts a fresh allowance. Cancel renewal in Settings →
+                  Billing; your paid access continues until the period ends.
+                  Demo images cost 12 credits and demo videos cost 80 credits.
+                  Live model prices have not been configured.
                 </p>
                 <p>
                   All prices are in US dollars. The final amount and any
@@ -971,7 +1120,7 @@ export default function Studio({
                 page === "library"
                   ? "Every idea, in one place."
                   : page === "purchases"
-                    ? "Your credit purchases."
+                    ? "Your billing history."
                     : "Welcome to your creative space.",
                 page === "library"
                   ? "Return to your creations and download the moments you love."
@@ -997,14 +1146,37 @@ export default function Studio({
                       demo={demo}
                     />
                   )}
+                  {subscription &&
+                    (page === "dashboard" || page === "purchases") && (
+                      <section
+                        className="panel subscription-summary"
+                        aria-label="Your monthly plan"
+                      >
+                        <div>
+                          <span className="tag">MONTHLY PLAN · DEMO</span>
+                          <h2>{subscription.planName}</h2>
+                          <p>
+                            {monthlyRemaining.toLocaleString()} monthly credits
+                            available ·{" "}
+                            {subscription.cancelAtPeriodEnd
+                              ? "Access until"
+                              : "Period ends"}{" "}
+                            {billingDate(subscription.periodEnd)}
+                          </p>
+                        </div>
+                        <Link href="/settings#billing" className="secondary">
+                          Manage subscription <ArrowUpRight size={16} />
+                        </Link>
+                      </section>
+                    )}
                   {page === "dashboard" && (
                     <div className="stats-grid">
                       {[
                         [
-                          "Available credits",
+                          "Legacy wallet credits",
                           account.wallet.balance.toLocaleString(),
                         ],
-                        ["Reserved for jobs", String(account.wallet.reserved)],
+                        ["Monthly credits available", String(monthlyRemaining)],
                         [
                           "Creations",
                           String(
@@ -1066,7 +1238,7 @@ export default function Studio({
                                   {j.state} ·{" "}
                                   {j.funding_source === "free_preview"
                                     ? "Free Preview"
-                                    : `${j.credits} credits`}{" "}
+                                    : `${j.credits} ${j.funding_source === "subscription" ? "monthly credits" : "wallet credits"}`}{" "}
                                   {j.width && `· ${j.width} × ${j.height}`}{" "}
                                   {j.duration && `· ${j.duration}s`}
                                 </p>
@@ -1097,6 +1269,11 @@ export default function Studio({
                   )}
                   {page === "purchases" && (
                     <div className="panel table-panel">
+                      <h2>Legacy one-time test purchases</h2>
+                      <p className="fine-print">
+                        Previous demo purchase records are retained separately
+                        from your monthly subscription.
+                      </p>
                       <table>
                         <thead>
                           <tr>
@@ -1129,7 +1306,7 @@ export default function Studio({
                           <h3>A clean slate.</h3>
                           <p>Your test purchases will appear here.</p>
                           <Link href="/pricing" className="primary">
-                            Explore credit packs
+                            Explore monthly plans
                           </Link>
                         </div>
                       )}
@@ -1137,7 +1314,7 @@ export default function Studio({
                   )}
                   {page === "dashboard" && (
                     <section className="panel table-panel">
-                      <h2>Credit activity</h2>
+                      <h2>Legacy wallet activity</h2>
                       <table>
                         <thead>
                           <tr>
@@ -1231,6 +1408,130 @@ export default function Studio({
                 "Account settings.",
                 "Manage your session and understand your data.",
               )}
+              <section
+                className="panel subscription-billing"
+                id="billing"
+                aria-label="Subscription billing"
+              >
+                <div className="subscription-heading">
+                  <div>
+                    <span className="tag">MONTHLY MEMBERSHIP</span>
+                    <h2>Billing</h2>
+                  </div>
+                  <span className="tag">
+                    {demo ? "DEMO · NO MONEY CHARGED" : "LIVE BILLING NOT OPEN"}
+                  </span>
+                </div>
+                {subscription ? (
+                  <>
+                    <div className="subscription-details">
+                      <div>
+                        <span>Your plan</span>
+                        <strong>{subscription.planName}</strong>
+                      </div>
+                      <div>
+                        <span>Status</span>
+                        <strong>
+                          {subscription.cancelAtPeriodEnd && monthlyAvailable
+                            ? "Renewal canceled"
+                            : subscription.status.replaceAll("_", " ")}
+                        </strong>
+                      </div>
+                      <div>
+                        <span>Monthly credits available</span>
+                        <strong>
+                          {monthlyRemaining.toLocaleString()} /{" "}
+                          {subscription.credits.total.toLocaleString()}
+                        </strong>
+                      </div>
+                      <div>
+                        <span>
+                          {subscription.cancelAtPeriodEnd || !monthlyAvailable
+                            ? "Access until"
+                            : demo
+                              ? "Simulated renewal date"
+                              : "Next renewal"}
+                        </span>
+                        <strong>{billingDate(subscription.periodEnd)}</strong>
+                      </div>
+                    </div>
+                    <p>
+                      {subscription.cancelAtPeriodEnd
+                        ? monthlyAvailable
+                          ? `You have unsubscribed from renewal. Your current allowance remains available until ${billingDate(subscription.periodEnd)}. There will be no new renewal unless you resume.`
+                          : "Your paid period has ended and renewal is canceled. Choose a new monthly plan if you want to subscribe again."
+                        : "Your plan renews monthly after each successful payment. Unused monthly credits expire at the end of the paid period and do not roll over."}
+                    </p>
+                    {demo && (
+                      <p className="fine-print">
+                        This is a simulated subscription. No card is charged and
+                        no automatic payment runs. A new allowance requires a
+                        successful simulated renewal.
+                      </p>
+                    )}
+                    <div className="subscription-actions">
+                      {subscription.cancelAtPeriodEnd ? (
+                        monthlyAvailable && (
+                          <button
+                            className="primary"
+                            disabled={busy}
+                            onClick={() =>
+                              run(async () => {
+                                await api("subscription/resume", {
+                                  subscriptionId: subscription.id,
+                                });
+                                await refresh();
+                                setNotice(
+                                  "Subscription renewal resumed. No money was charged in this demo.",
+                                );
+                              })
+                            }
+                          >
+                            Resume subscription
+                          </button>
+                        )
+                      ) : (
+                        <button
+                          className="secondary"
+                          disabled={busy}
+                          onClick={() => setCancelDialog(true)}
+                        >
+                          Cancel subscription
+                        </button>
+                      )}
+                      {!monthlyAvailable && (
+                        <Link className="primary" href="/pricing">
+                          Choose a monthly plan
+                        </Link>
+                      )}
+                      <Link className="text-link" href="/pricing">
+                        View monthly plans <ArrowUpRight size={16} />
+                      </Link>
+                    </div>
+                    <p className="fine-print">
+                      Cancel subscription unsubscribes you from future billing.
+                      Your account and saved work remain. Cancellation does not
+                      automatically refund the current period; applicable
+                      consumer rights still apply.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p>
+                      {account
+                        ? "You do not have a monthly subscription. Free Preview and legacy wallet credits remain separate."
+                        : "Sign in to view or manage your monthly subscription."}
+                    </p>
+                    <Link
+                      className="primary"
+                      href={account ? "/pricing" : "/sign-in"}
+                    >
+                      {account ? "Explore monthly plans" : "Sign in"}
+                      <ArrowUpRight size={16} />
+                    </Link>
+                  </>
+                )}
+              </section>
               <section className="panel prose">
                 <h2>Your account</h2>
                 <p>
@@ -1245,8 +1546,9 @@ export default function Studio({
                     : "Manage your verified identity through the authentication provider."}
                 </p>
                 <p>
-                  Sample media is available for 30 days by default. Purchased
-                  credits do not expire. See our{" "}
+                  Sample media is available for 30 days by default. Monthly
+                  credits expire with their paid period; legacy wallet credits
+                  remain separate. See our{" "}
                   <Link href="/privacy">privacy policy</Link> for retention and
                   third-party processing.
                 </p>
@@ -1284,7 +1586,9 @@ export default function Studio({
                   purchase records are retained for reconciliation and
                   applicable obligations. Active or uncertain jobs must be
                   resolved first. Live identity deletion requires a support
-                  request until identity-provider deletion is integrated.
+                  request until identity-provider deletion is integrated. A paid
+                  subscription must finish its current period before workspace
+                  deletion; cancel renewal in Billing first.
                 </p>
                 <button
                   className="danger"
@@ -1333,7 +1637,19 @@ export default function Studio({
       </div>
       {purchase && (
         <div className="modal-backdrop">
+          <button
+            className="modal-dismiss-layer"
+            aria-label="Dismiss checkout"
+            disabled={busy}
+            onClick={dismissCheckout}
+          />
           <section
+            ref={modalRef}
+            onKeyDown={(event) =>
+              modalKeyboard(event, () => {
+                if (!busy) void dismissCheckout();
+              })
+            }
             className="checkout-modal panel"
             role="dialog"
             aria-modal="true"
@@ -1342,23 +1658,34 @@ export default function Studio({
             <button
               className="modal-close icon-button"
               aria-label="Close checkout"
-              onClick={() => setPurchase(null)}
+              disabled={busy}
+              onClick={dismissCheckout}
             >
               <X />
             </button>
             <span className="tag">SIMULATED CHECKOUT · NO MONEY CHARGED</span>
-            <h2 id="checkout-title">{purchase.package.name} credit pack</h2>
+            <h2 id="checkout-title">
+              {purchase.package.name} monthly subscription
+            </h2>
             <p className="checkout-price">
               ${purchase.package.cents / 100}
-              <span> USD</span>
+              <span> USD / month</span>
             </p>
             <p>
-              {purchase.package.credits.toLocaleString()} test credits ·
-              one-time purchase
+              {purchase.package.credits.toLocaleString()} monthly test credits
             </p>
             <ul>
-              <li>No subscription or automatic renewal.</li>
-              <li>Credits do not expire. Generation prices vary by model.</li>
+              <li>
+                Monthly billing renews until you cancel in Settings → Billing.
+              </li>
+              <li>
+                Unused allowance expires at period end with no rollover.
+                Generation prices vary by model.
+              </li>
+              <li>
+                Cancel renewal anytime and keep paid access until the period
+                ends.
+              </li>
               <li>
                 This is a local payment simulation, not a gateway sandbox.
               </li>
@@ -1373,14 +1700,14 @@ export default function Studio({
               disabled={busy}
               onClick={() =>
                 run(async () => {
-                  await api("test-payment", {
-                    purchaseId: purchase.id,
+                  await api("subscription/test-payment", {
+                    checkoutId: purchase.id,
                     outcome: "paid",
                   });
                   setPurchase(null);
                   await refresh();
                   setNotice(
-                    "Test payment verified. Demo credits added once. No money was charged.",
+                    "Monthly demo subscription activated. No money was charged.",
                   );
                 })
               }
@@ -1392,13 +1719,15 @@ export default function Studio({
               disabled={busy}
               onClick={() =>
                 run(async () => {
-                  await api("test-payment", {
-                    purchaseId: purchase.id,
+                  await api("subscription/test-payment", {
+                    checkoutId: purchase.id,
                     outcome: "failed",
                   });
                   setPurchase(null);
                   await refresh();
-                  setNotice("Test payment failed. No credits were added.");
+                  setNotice(
+                    "Test payment failed. No subscription or monthly allowance was activated.",
+                  );
                 })
               }
             >
@@ -1406,18 +1735,77 @@ export default function Studio({
             </button>
             <button
               className="text-button"
+              disabled={busy}
+              onClick={dismissCheckout}
+            >
+              Cancel checkout
+            </button>
+          </section>
+        </div>
+      )}
+      {cancelDialog && subscription && (
+        <div className="modal-backdrop">
+          <button
+            className="modal-dismiss-layer"
+            aria-label="Dismiss cancellation"
+            disabled={busy}
+            onClick={() => setCancelDialog(false)}
+          />
+          <section
+            className="checkout-modal panel"
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cancel-subscription-title"
+            onKeyDown={(event) =>
+              modalKeyboard(event, () => {
+                if (!busy) setCancelDialog(false);
+              })
+            }
+          >
+            <h2 id="cancel-subscription-title">Cancel your subscription?</h2>
+            <p>
+              This unsubscribes you from future monthly renewals.{" "}
+              {monthlyAvailable ? (
+                <>
+                  You keep your current allowance and paid access until{" "}
+                  <strong>{billingDate(subscription.periodEnd)}</strong>.
+                </>
+              ) : (
+                "Your previous paid period has already ended."
+              )}
+            </p>
+            <p className="fine-print">
+              Your account and saved work remain. Cancellation does not
+              automatically refund the current period. Statutory rights are
+              unaffected. {demo ? "No real money is charged in this demo." : ""}
+            </p>
+            <button
+              className="secondary full"
+              disabled={busy}
+              onClick={() => setCancelDialog(false)}
+            >
+              Keep subscription
+            </button>
+            <button
+              className="danger full"
+              disabled={busy}
               onClick={() =>
                 run(async () => {
-                  await api("test-payment", {
-                    purchaseId: purchase.id,
-                    outcome: "canceled",
+                  await api("subscription/cancel", {
+                    subscriptionId: subscription.id,
                   });
-                  setPurchase(null);
+                  setCancelDialog(false);
                   await refresh();
+                  setNotice(
+                    monthlyAvailable
+                      ? `Renewal canceled. Your paid-period access continues until ${billingDate(subscription.periodEnd)}.`
+                      : "Renewal canceled. Your previous paid period has ended.",
+                  );
                 })
               }
             >
-              Cancel checkout
+              Confirm cancellation
             </button>
           </section>
         </div>
@@ -1496,7 +1884,11 @@ function Policy({ page }: { page: string }) {
         ],
         [
           "Credits and failures",
-          "A one-time Free Preview is separate from the wallet. Select Use credits to pay with your wallet; demo images cost 12 credits and demo videos cost 80 credits. Confirmed failures return reserved credits. An uncertain result keeps credits reserved until investigated, preventing repeat provider charges.",
+          "Free Preview, monthly allowances and legacy wallet credits are separate. Choose Use monthly credits for the current paid period, or Use credits for the legacy wallet. Demo images cost 12 credits and demo videos cost 80 credits. Confirmed failures return the reservation to its original funding source. An uncertain outcome stays reserved until investigated.",
+        ],
+        [
+          "Monthly plans and cancellation",
+          "A successful monthly payment grants the plan allowance for that billing period. Unused monthly credits expire at period end without rollover. In Settings → Billing, Cancel subscription unsubscribes you from future renewals while keeping paid access until the period ends. Resume subscription before that date to enable renewal again. Demo billing is simulated and never charges a card.",
         ],
         [
           "Need support?",
@@ -1514,8 +1906,12 @@ function Policy({ page }: { page: string }) {
           "GEEZ AI STUDIO currently operates as a demonstration. No live AI generation or paid checkout is available. These draft terms require operator and legal review before commercial launch.",
         ],
         [
-          "Credit purchases",
-          "Planned one-time packages are $5 for 500 credits, $10 for 1,000, $20 for 2,000, and $50 for 5,000. Credits are wallet units, not a guaranteed number of outputs. Purchased balances do not expire. Test credits have no cash value.",
+          "Monthly subscriptions",
+          "Planned monthly subscriptions are $5 for 500 credits, $10 for 1,000, $20 for 2,000, and $50 for 5,000 each paid billing period. These are usage allowances, not a guaranteed number of outputs. Unused monthly credits expire at period end without rollover. Successful renewal grants a fresh allowance; a failed payment grants none. Existing legacy test-wallet balances remain separate. All current checkout is simulated and test credits have no cash value.",
+        ],
+        [
+          "Cancellation and unsubscribe",
+          "Cancel subscription in Settings → Billing stops future renewal and keeps access through the current paid period. It does not delete your account or automatically refund the current period. You may resume before expiry. Cancellation of billing is separate from account deletion and any future email preferences. Applicable consumer rights are unaffected.",
         ],
         [
           "Generation and rights",
@@ -1548,7 +1944,7 @@ function Policy({ page }: { page: string }) {
         ],
         [
           "Retention and deletion",
-          "Media access defaults to 30 days; an operator cleanup task removes expired objects. Purchased credits do not expire. Account deletion removes prompts and media; wallet, purchase and free-allowance audit records are retained for reconciliation, one-time-offer enforcement and applicable legal obligations. A legally reviewed financial retention schedule is still required before launch.",
+          "Media access defaults to 30 days; an operator cleanup task removes expired objects. Monthly credits expire at the paid period end. Legacy wallet balances remain separate. Account deletion removes prompts and media after subscription and job reconciliation; wallet, subscription, billing-period, payment and free-allowance audit records are retained for reconciliation, one-time-offer enforcement and applicable obligations. A legally reviewed financial retention schedule is required before launch.",
         ],
         [
           "Your choices",
@@ -1573,7 +1969,7 @@ function Policy({ page }: { page: string }) {
         ],
         [
           "Refund accounting",
-          "Verified refunds reverse credited balances once. If credits have already been spent, the purchase is flagged for manual review rather than overdrawing the wallet. Partial refunds require a reviewed live gateway implementation.",
+          "Canceling renewal is separate from a refund request. Verified legacy purchase refunds reverse balances once; spent balances are flagged for review. Monthly payment refunds, disputes, partial refunds and applicable consumer rights require an approved gateway policy and tested live implementation before sales are enabled.",
         ],
       ],
     },

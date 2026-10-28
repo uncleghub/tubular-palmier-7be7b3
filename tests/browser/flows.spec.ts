@@ -1,6 +1,14 @@
 import { test, expect } from "@playwright/test";
 import sharp from "sharp";
-test("account, purchase, image, video, failure release and private downloads", async ({
+
+test.beforeEach(async ({ context }) => {
+  // Each test represents a different visitor; keep the production sign-in limit.
+  await context.setExtraHTTPHeaders({
+    "x-forwarded-for": "studio-browser-" + crypto.randomUUID(),
+  });
+});
+
+test("monthly subscription, image, video, failure release and private downloads", async ({
   page,
   context,
   browser,
@@ -22,16 +30,19 @@ test("account, purchase, image, video, failure release and private downloads", a
   await page.getByRole("button", { name: "Enter demo workspace" }).click();
   await expect(page.getByRole("status")).toContainText("ready");
   await page.goto("/pricing");
-  await page.getByRole("button", { name: "Try Starter checkout" }).click();
-  await expect(page.getByRole("dialog")).toContainText("500 test credits");
+  await page.getByRole("button", { name: "Try Starter monthly plan" }).click();
+  await expect(page.getByRole("dialog")).toContainText("500");
+  await expect(page.getByRole("dialog")).toContainText("monthly");
   await page
     .getByRole("button", { name: "Simulate successful payment" })
     .click();
   await expect(page.getByRole("status")).toContainText(
-    "Demo credits added once",
+    "Monthly demo subscription activated",
   );
   await page.goto("/image");
-  await page.getByRole("radio", { name: "Use credits", exact: true }).check();
+  await page
+    .getByRole("radio", { name: "Use monthly credits", exact: true })
+    .check();
   await page
     .getByLabel("Your prompt")
     .fill("A tranquil landscape under a golden moon");
@@ -48,10 +59,14 @@ test("account, purchase, image, video, failure release and private downloads", a
   expect(result.status()).toBe(200);
   expect(result.headers()["content-type"]).toBe("image/svg+xml");
   const alien = await browser.newContext();
-  await alien.request.post("/api/session", {
+  const alienSignIn = await alien.request.post("/api/session", {
     data: {},
-    headers: { origin: "http://localhost:3000" },
+    headers: {
+      origin: "http://localhost:3000",
+      "x-forwarded-for": "studio-alien-" + crypto.randomUUID(),
+    },
   });
+  expect(alienSignIn.status()).toBe(200);
   expect((await alien.request.get(href!)).status()).toBe(400);
   await alien.close();
   const other = await page.request.get("/api/admin");
@@ -61,7 +76,9 @@ test("account, purchase, image, video, failure release and private downloads", a
     fullPage: true,
   });
   await page.goto("/video");
-  await page.getByRole("radio", { name: "Use credits", exact: true }).check();
+  await page
+    .getByRole("radio", { name: "Use monthly credits", exact: true })
+    .check();
   await page.getByLabel("Your prompt").fill("A cinematic slow motion world");
   const clipSeconds = info.project.name === "mobile" ? "6" : "8";
   await page.getByLabel("Duration").selectOption(clipSeconds);
@@ -78,15 +95,29 @@ test("account, purchase, image, video, failure release and private downloads", a
     (await context.request.get(videoHref!)).headers()["content-type"],
   ).toBe("video/mp4");
   await page.goto("/image");
-  await page.getByRole("radio", { name: "Use credits", exact: true }).check();
+  await page
+    .getByRole("radio", { name: "Use monthly credits", exact: true })
+    .check();
   await page.getByLabel("Your prompt").fill("[simulate failure]");
   await page.getByRole("button", { name: "Get exact credit quote" }).click();
   await page.getByRole("button", { name: "Confirm & create sample" }).click();
   await expect(
-    page.getByText("Reserved credits were returned.", { exact: false }),
+    page.getByText(/reserved.*credits.*returned|monthly.*credits.*restored/i),
   ).toBeVisible({ timeout: 30000 });
   await page.goto("/dashboard");
-  await expect(page.getByText("1,408", { exact: true }).first()).toBeVisible();
+  await expect(
+    page.getByText("Monthly credits available", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("408", { exact: true }).first()).toBeVisible();
+  const afterGeneration = await (
+    await context.request.get("/api/account")
+  ).json();
+  expect(afterGeneration.wallet).toMatchObject({ balance: 1000, reserved: 0 });
+  expect(afterGeneration.subscription.credits).toMatchObject({
+    remaining: 408,
+    reserved: 0,
+    spent: 92,
+  });
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -97,10 +128,14 @@ test("server ownership and CSRF boundaries", async ({ browser }) => {
   const a = await browser.newContext(),
     b = await browser.newContext();
   for (const c of [a, b]) {
-    await c.request.post("/api/session", {
+    const session = await c.request.post("/api/session", {
       data: {},
-      headers: { origin: "http://localhost:3000" },
+      headers: {
+        origin: "http://localhost:3000",
+        "x-forwarded-for": "studio-ownership-" + crypto.randomUUID(),
+      },
     });
+    expect(session.status()).toBe(200);
   }
   const invalid = await a.request.post("/api/uploads", {
     multipart: {
@@ -138,13 +173,14 @@ test("server ownership and CSRF boundaries", async ({ browser }) => {
     headers: { origin: "http://localhost:3000" },
   });
   expect(forbiddenReference.status()).toBe(400);
-  const pending = await a.request.post("/api/checkout", {
-    data: { packageId: "starter" },
+  const pending = await a.request.post("/api/subscription/checkout", {
+    data: { planId: "starter" },
     headers: { origin: "http://localhost:3000" },
   });
-  const purchaseId = (await pending.json()).id;
-  await a.request.post("/api/test-payment", {
-    data: { purchaseId, outcome: "failed" },
+  expect(pending.status()).toBe(200);
+  const checkoutId = (await pending.json()).id;
+  await a.request.post("/api/subscription/test-payment", {
+    data: { checkoutId, outcome: "failed" },
     headers: { origin: "http://localhost:3000" },
   });
   expect(
@@ -161,8 +197,8 @@ test("server ownership and CSRF boundaries", async ({ browser }) => {
     headers: { origin: "http://localhost:3000" },
   });
   expect(q.status()).toBe(200);
-  const denied = await a.request.post("/api/checkout", {
-    data: { packageId: "starter" },
+  const denied = await a.request.post("/api/subscription/checkout", {
+    data: { planId: "starter" },
     headers: { origin: "https://evil.example" },
   });
   expect(denied.status()).toBe(400);

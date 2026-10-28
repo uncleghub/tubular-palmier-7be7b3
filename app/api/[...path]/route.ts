@@ -7,15 +7,20 @@ import { z } from "zod";
 import { userId, demoSignIn, sameOrigin, rateLimit, adminId } from "@/lib/auth";
 import { pool, transaction } from "@/lib/db";
 import { getFreePreview } from "@/lib/free-preview";
-import { packages, demo } from "@/lib/config";
+import { demo } from "@/lib/config";
 import { inputSchema, models } from "@/lib/catalog";
 import { quote, reserveJob, finishJob } from "@/lib/wallet";
 import { store, download, remove } from "@/lib/storage";
+import { paddleWebhook } from "@/lib/paddle-sandbox";
 import {
-  sandboxAvailable,
-  sandboxCheckout,
-  paddleWebhook,
-} from "@/lib/paddle-sandbox";
+  getSubscription,
+  createSubscriptionCheckout,
+  simulateSubscriptionPayment,
+  cancelSubscription,
+  resumeSubscription,
+  simulateSubscriptionRenewal,
+  assertSubscriptionDeletionAllowed,
+} from "@/lib/subscriptions";
 import sharp from "sharp";
 import { signPayment, receivePayment } from "@/lib/payments";
 export const runtime = "nodejs";
@@ -99,6 +104,7 @@ async function handle(req: Request, context: Context) {
         purchases: purchases.rows,
         ledger: ledger.rows,
         freePreview: await getFreePreview(user),
+        subscription: await getSubscription(user),
         demo,
       });
     }
@@ -158,20 +164,52 @@ async function handle(req: Request, context: Context) {
       });
     }
     if (route === "checkout" && req.method === "POST") {
-      if (!demo) throw new Error("Purchases are not open yet.");
-      const { packageId } = z
-        .object({ packageId: z.string() })
+      throw new Error(
+        "One-time purchases are closed. Choose a monthly subscription.",
+      );
+    }
+    if (route === "subscription/checkout" && req.method === "POST") {
+      const { planId } = z
+        .object({ planId: z.string() })
         .strict()
         .parse(await req.json());
-      const p = packages.find((p) => p.id === packageId);
-      if (!p) throw new Error("Choose a valid credit package.");
-      if (sandboxAvailable()) return reply(await sandboxCheckout(user, p.id));
-      const id = randomUUID();
-      await pool.query(
-        "INSERT INTO purchases(id,user_id,package_id,cents,credits,mode) VALUES($1,$2,$3,$4,$5,'test')",
-        [id, user, p.id, p.cents, p.credits],
+      return reply(await createSubscriptionCheckout(user, planId));
+    }
+    if (route === "subscription/test-payment" && req.method === "POST") {
+      const { checkoutId, outcome } = z
+        .object({
+          checkoutId: z.uuid(),
+          outcome: z.enum(["paid", "failed", "canceled"]),
+        })
+        .strict()
+        .parse(await req.json());
+      await simulateSubscriptionPayment(user, checkoutId, outcome);
+      return reply({ ok: true, mode: "simulated; no money charged" });
+    }
+    if (
+      (route === "subscription/cancel" || route === "subscription/resume") &&
+      req.method === "POST"
+    ) {
+      const { subscriptionId } = z
+        .object({ subscriptionId: z.uuid() })
+        .strict()
+        .parse(await req.json());
+      return reply(
+        route === "subscription/cancel"
+          ? await cancelSubscription(user, subscriptionId)
+          : await resumeSubscription(user, subscriptionId),
       );
-      return reply({ id, package: p });
+    }
+    if (route === "subscription/test-renewal" && req.method === "POST") {
+      const { subscriptionId, outcome } = z
+        .object({
+          subscriptionId: z.uuid(),
+          outcome: z.enum(["paid", "failed"]),
+        })
+        .strict()
+        .parse(await req.json());
+      await simulateSubscriptionRenewal(user, subscriptionId, outcome);
+      return reply({ ok: true, mode: "simulated; no money charged" });
     }
     if (route === "test-payment" && req.method === "POST") {
       if (!demo) throw new Error("Test checkout is disabled.");
@@ -209,6 +247,7 @@ async function handle(req: Request, context: Context) {
     if (route === "account/delete" && req.method === "POST") {
       await transaction(async (c) => {
         await c.query("SELECT id FROM users WHERE id=$1 FOR UPDATE", [user]);
+        await assertSubscriptionDeletionAllowed(user, c);
         const active = await c.query(
           "SELECT id FROM jobs WHERE user_id=$1 AND state IN ('queued','running','uncertain')",
           [user],
@@ -247,6 +286,10 @@ async function handle(req: Request, context: Context) {
         "jobs",
         "free_preview_allowances",
         "free_preview_events",
+        "subscriptions",
+        "subscription_periods",
+        "subscription_events",
+        "subscription_checkouts",
         "audit",
         "settings",
       ];
@@ -356,7 +399,7 @@ async function handle(req: Request, context: Context) {
       return reply({ error: "Check your inputs and try again." }, 400);
     const message = e instanceof Error ? e.message : "Unexpected error";
     const allowed =
-      /^(Free Preview|Sign in|This model|These settings|Reference image|Your quote|Insufficient|Daily generation|Generation is|Too many|Request could|Administrator|Upload|Media not|Purchases are|Choose a valid|Test checkout|Purchase not|Wait for|Adjustment would|Confirm external|Demo is|Unknown model)/;
+      /^(Free Preview|Subscription|Monthly|Live subscriptions|One-time purchases|Sign in|This model|These settings|Reference image|Your quote|Insufficient|Daily generation|Generation is|Too many|Request could|Administrator|Upload|Media not|Purchases are|Choose a valid|Test checkout|Purchase not|Wait for|Adjustment would|Confirm external|Demo is|Unknown model)/;
     return reply(
       {
         error: allowed.test(message)

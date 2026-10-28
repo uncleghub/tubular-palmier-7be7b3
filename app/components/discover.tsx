@@ -367,14 +367,14 @@ export default function Discover() {
         </span>
         <div>
           <span className="studio-kicker">MORE ROOM FOR YOUR NEXT IDEA</span>
-          <h3>Simple packs. Serious creative potential.</h3>
+          <h3>Monthly plans. Serious creative potential.</h3>
           <p>
-            One-time credit packs from $5. No subscriptions. No automatic
-            renewals.
+            Monthly plans from $5, with a fresh allowance each paid month.
+            Cancel future renewals in your account settings.
           </p>
         </div>
         <Link href="/pricing">
-          Explore credit packs <ArrowUpRight size={17} />
+          Explore monthly plans <ArrowUpRight size={17} />
         </Link>
       </section>
     </div>

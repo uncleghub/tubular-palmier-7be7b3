@@ -18,9 +18,9 @@ ALTER TABLE jobs ADD COLUMN IF NOT EXISTS list_price_credits integer NOT NULL DE
 UPDATE quotes SET list_price_credits=credits WHERE list_price_credits=0 AND funding_source='wallet';
 UPDATE jobs SET list_price_credits=credits WHERE list_price_credits=0 AND funding_source='wallet';
 ALTER TABLE quotes DROP CONSTRAINT IF EXISTS quotes_credits_check;
-ALTER TABLE quotes ADD CONSTRAINT quotes_credits_check CHECK((funding_source='wallet' AND credits>0) OR (funding_source='free_preview' AND credits=0 AND list_price_credits>0));
+ALTER TABLE quotes ADD CONSTRAINT quotes_credits_check CHECK((funding_source IN ('wallet','subscription') AND credits>0) OR (funding_source='free_preview' AND credits=0 AND list_price_credits>0));
 ALTER TABLE jobs DROP CONSTRAINT IF EXISTS jobs_credits_check;
-ALTER TABLE jobs ADD CONSTRAINT jobs_credits_check CHECK((funding_source='wallet' AND credits>0) OR (funding_source='free_preview' AND credits=0 AND list_price_credits>0));
+ALTER TABLE jobs ADD CONSTRAINT jobs_credits_check CHECK((funding_source IN ('wallet','subscription') AND credits>0) OR (funding_source='free_preview' AND credits=0 AND list_price_credits>0));
 CREATE TABLE IF NOT EXISTS free_preview_events (
  id uuid PRIMARY KEY,
  user_id text NOT NULL REFERENCES users(id),

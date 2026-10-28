@@ -1,6 +1,6 @@
 # Free Preview
 
-GEEZ includes a one-time allowance of **3 images and 1 six-second video per verified account**. This is separate from the four one-time credit packages. It is not a subscription, daily refill, wallet top-up or a promise of unrestricted models. No card is required to use the allowance.
+GEEZ includes a one-time allowance of **3 images and 1 six-second video per verified account**. This is separate from the four monthly plans and the legacy wallet. It is not a daily refill, wallet top-up or a promise of unrestricted models. No card is required to use the allowance. Monthly renewal and cancellation never reset it; see `SUBSCRIPTIONS.md`.
 
 ## Current demonstration
 

@@ -2,7 +2,7 @@
 
 Create images. Generate videos. Unlock your ideas.
 
-A TypeScript / Next.js application with a responsive obsidian-and-violet studio, PostgreSQL wallet and durable queue, a separate worker, private media access, Clerk integration, and an optional Paddle **sandbox** adapter.
+A TypeScript / Next.js application with a responsive obsidian-and-violet studio, PostgreSQL wallet and durable queue, monthly subscription simulation with cancellation, a separate worker, private media access and Clerk integration. An older Paddle one-time **sandbox** adapter is retained for history; recurring gateway integration is still required.
 
 **Delivery status: deployed demonstration, not a finished commercial launch.** No live AI model has been verified or enabled. Default checkout is a local signed-event simulation, not a gateway sandbox. No real money is collected. The owner deployed the demo to [Render](https://tubular-palmier-7be7b3.onrender.com/) and tested sign-in plus sample image/video downloads. Workspace access to that public host is restricted, so independent end-to-end checks on the public deployment remain limited. Read [launch blockers](docs/LAUNCH.md) before configuring external services.
 
@@ -23,11 +23,11 @@ npm run worker
 
 The database listens only on the local interface. Its documented password is for local development only. The setup helper assumes the example local database configuration; if you already use a managed `DATABASE_URL`, start that database instead and run `npm ci`, `npm run db:migrate`, and the checks manually.
 
-Click **Sign in → Enter demo workspace** to receive 1,000 test credits in a private seven-day browser session. Choose a pack under Pricing to simulate successful or failed payments. Demo image jobs create an original SVG illustration, not AI output. Demo video jobs create a silent 720p FFmpeg test pattern, at exactly six or eight seconds, validated with FFprobe. Reference uploads are validated and privately stored but do not alter demo samples. Enter the exact prompt `[simulate failure]` to exercise a confirmed failure and credit release.
+Click **Sign in → Enter demo workspace** to receive 1,000 test-wallet credits in a private seven-day browser session. Choose a monthly plan under Pricing to simulate successful or failed payments, then select **Use monthly credits** in the studio. Settings includes cancellation of future renewal while preserving the current paid month. The once-only Free Preview and legacy test wallet stay separate. Demo image jobs create an original SVG illustration, not AI output. Demo video jobs create a silent 720p FFmpeg test pattern, at exactly six or eight seconds, validated with FFprobe. Reference uploads are validated and privately stored but do not alter demo samples. Enter the exact prompt `[simulate failure]` to exercise a confirmed failure and credit release.
 
 ## Included screens
 
-Discover/home, image and video studios, pricing ($5/$10/$20/$50 one-time packs), overview, media library, purchase history, settings/deletion, help, draft terms/privacy/refund/acceptable-use policies, sign-in/sign-up, and a server-role-protected admin area. Search metadata, robots rules and sitemap are included. Examples are local original illustrations clearly labeled as examples.
+Discover/home, image and video studios, pricing ($5/$10/$20/$50 draft monthly plans), overview, media library, historical purchases, settings/billing/cancellation/deletion, help, draft terms/privacy/refund/acceptable-use policies, sign-in/sign-up, and a server-role-protected admin area. Search metadata, robots rules and sitemap are included. Gallery inspiration and local samples are clearly labeled as examples.
 
 ## Checks
 
@@ -49,11 +49,12 @@ Backend tests create and drop an isolated PostgreSQL schema; the normal worker c
 - `app/`: server-rendered shell, client studio and validated API routes.
 - `lib/catalog.ts`: capability validation; unavailable external candidates fail closed.
 - `lib/wallet.ts`: row-locked balances, frozen expiring quotes, idempotent reservations/settlement, payment fulfillment, refunds and reversals.
+- `lib/subscriptions.ts` and `migrations/003_subscriptions.sql`: local monthly checkout, paid-period allowances, period-bound spending, cancellation/resume, and test renewal events. No live recurring gateway is connected.
 - `migrations/001.sql`: database constraints, ledger, purchases, queue, uploads, audit and limits.
 - `scripts/worker.ts`: durable PostgreSQL queue using `FOR UPDATE SKIP LOCKED`, leases and uncertain outcomes. Runs outside web requests.
 - `lib/storage.ts`: local ignored demo media; private S3-compatible storage and 60-second links outside demo mode.
 - `lib/replicate-adapter.ts`: staged, unregistered transport; one billable submission, read-only reconciliation. No verified live model adapter is registered.
-- `lib/paddle-sandbox.ts`: optional hosted test checkout and SDK-verified signed webhook handling. Live mode is intentionally absent.
+- `lib/paddle-sandbox.ts`: historical one-time test adapter and SDK-verified signed webhook handling; public one-time checkout creation is closed. It is not a recurring integration. Live mode is intentionally absent.
 - `tests/`: database and desktop/mobile browser checks.
 
 ## Documentation
@@ -63,6 +64,8 @@ Backend tests create and drop an isolated PostgreSQL schema; the normal worker c
 - [Operations, support, refunds and spending controls](docs/OPERATIONS.md)
 - [Outstanding launch prerequisites](docs/LAUNCH.md)
 - [Observed verification results](docs/VALIDATION.md)
+- [Monthly billing and cancellation](docs/SUBSCRIPTIONS.md)
+- [Profitability assumptions and measurement plan](docs/UNIT-ECONOMICS.md)
 
 No custom domain, provider funds or live checkout was purchased. The owner configured a Render account and temporary demo hosting. Add actual secret values through your host's secret manager, never source control or chat.
 
@@ -78,4 +81,4 @@ The GEEZ interface refresh, example artwork disclosure and visual checks are des
 
 ## Free Preview
 
-A one-time **3 images + 1 six-second video** allowance is now separate from purchased credits. Eligible studio settings default to Free Preview; **Use credits** explicitly selects wallet charging. Current use is sample-only. See [FREE-PREVIEW.md](docs/FREE-PREVIEW.md) for accounting, caps and the verified-account/model prerequisites before live activation.
+A one-time **3 images + 1 six-second video** allowance is separate from monthly credits and the legacy wallet. Eligible studio settings default to Free Preview; **Use monthly credits** selects the paid-period allowance and **Use credits** selects the older wallet. Current use is sample-only. See [FREE-PREVIEW.md](docs/FREE-PREVIEW.md) for accounting, caps and the verified-account/model prerequisites before live activation.

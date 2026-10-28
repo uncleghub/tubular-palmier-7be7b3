@@ -38,7 +38,7 @@ The protected admin page exposes customers, purchases, ledger, jobs, failures, e
 
 Configure `NEXT_PUBLIC_APP_NAME`, `NEXT_PUBLIC_TAGLINE`, `NEXT_PUBLIC_SUPPORT_EMAIL` and `NEXT_PUBLIC_ACCENT` at build time; brand shell, metadata and support copy must be reviewed after changes. The wordmark falls back to the configured name when changed; review the local illustrations if rebranding. No company address, testimonials or customer metrics are invented.
 
-Run `npm run cleanup` daily. It deletes expired output objects and unused expired references, then clears expired quotes/rate-limit rows. It never expires credits. Account deletion removes references, output files and prompts, while retaining financial records. Resolve active/uncertain jobs first. Configure an actual support/abuse address before accepting customers and a legally reviewed financial record retention schedule before collecting money.
+Run `npm run cleanup` daily. It deletes expired output objects and unused expired references, then clears expired quotes/rate-limit rows. It never changes legacy wallet balances. Monthly allowances become unusable at their paid-period end through admission checks; they are not rolled over or deleted. Account deletion removes references, output files and prompts while retaining financial records. Resolve active/uncertain jobs and monthly subscription/pending-checkout restrictions first. Configure an actual support/abuse address before accepting customers and a legally reviewed financial record retention schedule before collecting money.
 
 ## Data and recovery
 
@@ -47,3 +47,7 @@ Use PostgreSQL backups and test restore. Local setup stores data in a Docker vol
 ## Free Preview operations
 
 See `FREE-PREVIEW.md`. Free allowances and events are separate from the wallet ledger; free jobs have zero actual credit debit and retain list-price credits for conservative caps. Upgrade every worker before enabling the live flag, apply all migrations, and preserve existing one-time grants across deploys. Inspect `free_preview_allowances` / `free_preview_events` in the admin view for reserved/used units. Do not manually reset an uncertain unit before confirming the provider outcome.
+
+## Monthly subscription operations
+
+See `SUBSCRIPTIONS.md`. All current monthly payments and renewals are explicit local simulations. No actual gateway charges or scheduled payments are made. Inspect `subscriptions`, `subscription_periods`, `subscription_checkouts` and `subscription_events`; never count test events as live revenue. The old one-time public checkout is closed. A monthly paid period is granted once per payment reference, separate from the old wallet and free units. Cancel stops future renewal, paid access ends at `period_end`, and expired quotes cannot spend a later period. Late failure releases stay in the original period. Upgrade web and worker together before admitting subscription-funded jobs; older workers do not understand this funding source. The combined Render demo launcher upgrades both. Do not enable real recurring payments until provider approval, signed lifecycle/renewal webhooks, cancellation, reversals and account-deletion termination have been implemented and tested.
